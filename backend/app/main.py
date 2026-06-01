@@ -1,52 +1,18 @@
-import os
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import List
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.orm import Session
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://taskuser:taskpass@localhost:5432/taskdb"
+from app.database import get_db
+from app.models import UserModel, TaskModel
+from app.schemas import (
+    UserCreate, UserResponse, UserLogin, Token,
+    TaskCreate, TaskResponse
 )
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-
-class TaskModel(Base):
-    __tablename__ = "tasks"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    titulo = Column(String(255), nullable=False)
-    descripcion = Column(String(1000), nullable=True)
-    completada = Column(Boolean, default=False)
-
-
-class TaskCreate(BaseModel):
-    titulo: str = Field(..., min_length=1, max_length=255)
-    descripcion: Optional[str] = Field(None, max_length=1000)
-
-
-class TaskResponse(BaseModel):
-    id: int
-    titulo: str
-    descripcion: Optional[str]
-    completada: bool
-
-    model_config = {"from_attributes": True}
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+from app.security import get_password_hash, verify_password, create_access_token
+from app.auth import get_current_user
 
 
 @asynccontextmanager
@@ -54,7 +20,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Enterprise Task Manager API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Enterprise Task Manager API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,17 +35,63 @@ app.add_middleware(
 )
 
 
+@app.post("/api/auth/register", response_model=UserResponse, status_code=201)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(UserModel).filter(UserModel.email == user.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    db_user = UserModel(
+        email=user.email,
+        password_hash=get_password_hash(user.password)
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+@app.post("/api/auth/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
+    if not db_user or not verify_password(user.password, db_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(data={"sub": str(db_user.id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 @app.get("/api/tasks", response_model=List[TaskResponse])
-def list_tasks(db: Session = Depends(get_db)):
-    return db.query(TaskModel).order_by(TaskModel.id.desc()).all()
+def list_tasks(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return (
+        db.query(TaskModel)
+        .filter(TaskModel.user_id == current_user.id)
+        .order_by(TaskModel.id.desc())
+        .all()
+    )
 
 
 @app.post("/api/tasks", response_model=TaskResponse, status_code=201)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    task: TaskCreate,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     db_task = TaskModel(
         titulo=task.titulo,
         descripcion=task.descripcion,
         completada=False,
+        user_id=current_user.id,
     )
     db.add(db_task)
     db.commit()
@@ -88,16 +100,33 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/api/tasks/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+def get_task(
+    task_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    task = (
+        db.query(TaskModel)
+        .filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id)
+        .first()
+    )
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     return task
 
 
 @app.put("/api/tasks/{task_id}", response_model=TaskResponse)
-def update_task(task_id: int, task: TaskCreate, db: Session = Depends(get_db)):
-    db_task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+def update_task(
+    task_id: int,
+    task: TaskCreate,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_task = (
+        db.query(TaskModel)
+        .filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id)
+        .first()
+    )
     if not db_task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     db_task.titulo = task.titulo
@@ -108,8 +137,16 @@ def update_task(task_id: int, task: TaskCreate, db: Session = Depends(get_db)):
 
 
 @app.patch("/api/tasks/{task_id}/toggle", response_model=TaskResponse)
-def toggle_task(task_id: int, db: Session = Depends(get_db)):
-    db_task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+def toggle_task(
+    task_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_task = (
+        db.query(TaskModel)
+        .filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id)
+        .first()
+    )
     if not db_task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     db_task.completada = not db_task.completada
@@ -119,8 +156,16 @@ def toggle_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @app.delete("/api/tasks/{task_id}", status_code=204)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
-    db_task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+def delete_task(
+    task_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_task = (
+        db.query(TaskModel)
+        .filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id)
+        .first()
+    )
     if not db_task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     db.delete(db_task)
