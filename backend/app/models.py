@@ -1,8 +1,15 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+task_category = Table(
+    "task_categories",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("category_id", Integer, ForeignKey("categories.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class UserModel(Base):
@@ -16,6 +23,16 @@ class UserModel(Base):
     tasks = relationship("TaskModel", back_populates="user", cascade="all, delete-orphan")
 
 
+class CategoryModel(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False, unique=True)
+    color = Column(String(7), default="#4361ee")
+
+    tasks = relationship("TaskModel", secondary=task_category, back_populates="categories")
+
+
 class TaskModel(Base):
     __tablename__ = "tasks"
 
@@ -26,3 +43,4 @@ class TaskModel(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     user = relationship("UserModel", back_populates="tasks")
+    categories = relationship("CategoryModel", secondary=task_category, back_populates="tasks")

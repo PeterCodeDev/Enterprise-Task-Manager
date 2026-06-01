@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.logging_config import logger
 from app.database import get_db
-from app.models import UserModel, TaskModel
+from app.models import UserModel, TaskModel, CategoryModel
 from app.schemas import (
     UserCreate, UserResponse, UserLogin, Token,
-    TaskCreate, TaskResponse
+    TaskCreate, TaskUpdate, TaskResponse,
+    CategoryCreate, CategoryResponse,
 )
 from app.security import get_password_hash, verify_password, create_access_token
 from app.auth import get_current_user
@@ -60,6 +61,10 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
 
+# ============================================================
+# Auth
+# ============================================================
+
 @app.post("/api/auth/register", response_model=UserResponse, status_code=201)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(UserModel).filter(UserModel.email == user.email).first()
@@ -92,11 +97,53 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+# ============================================================
+# Categories
+# ============================================================
+
+@app.get("/api/categories", response_model=List[CategoryResponse])
+def list_categories(db: Session = Depends(get_db)):
+    return db.query(CategoryModel).order_by(CategoryModel.nombre).all()
+
+
+@app.post("/api/categories", response_model=CategoryResponse, status_code=201)
+def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
+    existing = db.query(CategoryModel).filter(CategoryModel.nombre == category.nombre).first()
+    if existing:
+        raise ConflictException(detail="Category already exists")
+    
+    db_cat = CategoryModel(nombre=category.nombre, color=category.color)
+    db.add(db_cat)
+    db.commit()
+    db.refresh(db_cat)
+    return db_cat
+
+
+@app.delete("/api/categories/{category_id}", status_code=204)
+def delete_category(category_id: int, db: Session = Depends(get_db)):
+    db_cat = db.query(CategoryModel).filter(CategoryModel.id == category_id).first()
+    if not db_cat:
+        raise NotFoundException(detail="Category not found")
+    db.delete(db_cat)
+    db.commit()
+
+
+# ============================================================
+# Tasks
+# ============================================================
+
+def _get_categories(db: Session, category_ids: List[int]) -> List[CategoryModel]:
+    if not category_ids:
+        return []
+    return db.query(CategoryModel).filter(CategoryModel.id.in_(category_ids)).all()
+
+
 @app.get("/api/tasks", response_model=List[TaskResponse])
 def list_tasks(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     completada: Optional[bool] = Query(None, description="Filter by completion"),
+    category_id: Optional[int] = Query(None, description="Filter by category"),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -104,6 +151,9 @@ def list_tasks(
     
     if completada is not None:
         query = query.filter(TaskModel.completada == completada)
+    
+    if category_id is not None:
+        query = query.filter(TaskModel.categories.any(CategoryModel.id == category_id))
     
     offset = (page - 1) * page_size
     return (
@@ -127,10 +177,11 @@ def create_task(
         completada=False,
         user_id=current_user.id,
     )
+    db_task.categories = _get_categories(db, task.category_ids)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    logger.info(f"Task created: {db_task.titulo} by user {current_user.email}")
+    logger.info(f"Task created: {db_task.titulo}")
     return db_task
 
 
@@ -153,7 +204,7 @@ def get_task(
 @app.put("/api/tasks/{task_id}", response_model=TaskResponse)
 def update_task(
     task_id: int,
-    task: TaskCreate,
+    task: TaskUpdate,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -166,6 +217,7 @@ def update_task(
         raise NotFoundException(detail="Tarea no encontrada")
     db_task.titulo = task.titulo
     db_task.descripcion = task.descripcion
+    db_task.categories = _get_categories(db, task.category_ids)
     db.commit()
     db.refresh(db_task)
     return db_task
@@ -206,6 +258,10 @@ def delete_task(
     db.delete(db_task)
     db.commit()
 
+
+# ============================================================
+# Health
+# ============================================================
 
 @app.get("/api/health")
 def health_check():

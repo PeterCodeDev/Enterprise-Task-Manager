@@ -30,9 +30,29 @@ class TokenData(BaseModel):
     user_id: Optional[int] = None
 
 
+class CategoryCreate(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=100)
+    color: str = Field(default="#4361ee", max_length=7)
+
+
+class CategoryResponse(BaseModel):
+    id: int
+    nombre: str
+    color: str
+
+    model_config = {"from_attributes": True}
+
+
 class TaskCreate(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=255)
     descripcion: Optional[str] = Field(None, max_length=1000)
+    category_ids: List[int] = Field(default_factory=list)
+
+
+class TaskUpdate(BaseModel):
+    titulo: str = Field(..., min_length=1, max_length=255)
+    descripcion: Optional[str] = Field(None, max_length=1000)
+    category_ids: List[int] = Field(default_factory=list)
 
 
 class TaskResponse(BaseModel):
@@ -41,5 +61,6 @@ class TaskResponse(BaseModel):
     descripcion: Optional[str]
     completada: bool
     user_id: int
+    categories: List[CategoryResponse] = []
 
     model_config = {"from_attributes": True}
