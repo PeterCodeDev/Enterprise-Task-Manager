@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { TaskService } from './task.service';
 import { AuthService } from './auth.service';
 import { CategoryService } from './category.service';
+import { ToastService } from './toast.service';
 import { Task, Category } from './task.model';
 
 @Component({
@@ -13,8 +14,10 @@ export class AppComponent implements OnInit {
   categories: Category[] = [];
   newTitle = '';
   newDescription = '';
+  newDueDate = '';
   selectedCategoryIds: number[] = [];
   filterCategoryId: number | null = null;
+  showVencidas = false;
   loading = false;
 
   loginEmail = '';
@@ -28,7 +31,8 @@ export class AppComponent implements OnInit {
   constructor(
     private taskService: TaskService,
     private categoryService: CategoryService,
-    public authService: AuthService
+    public authService: AuthService,
+    public toast: ToastService,
   ) {}
 
   ngOnInit(): void {
@@ -42,6 +46,11 @@ export class AppComponent implements OnInit {
     return this.authService.getEmail();
   }
 
+  isOverdue(task: Task): boolean {
+    if (!task.fecha_vencimiento || task.completada) return false;
+    return new Date(task.fecha_vencimiento) < new Date();
+  }
+
   login(): void {
     if (!this.loginEmail || !this.loginPassword) return;
     this.errorMessage = '';
@@ -50,6 +59,7 @@ export class AppComponent implements OnInit {
         this.loginPassword = '';
         this.loadCategories();
         this.loadTasks();
+        this.toast.show('Sesión iniciada', 'success');
       },
       error: () => {
         this.errorMessage = 'Email o contraseña incorrectos';
@@ -71,6 +81,7 @@ export class AppComponent implements OnInit {
         this.loginEmail = this.registerEmail;
         this.registerEmail = '';
         this.registerPassword = '';
+        this.toast.show('Cuenta creada correctamente', 'success');
       },
       error: (err) => {
         if (err.status === 409) {
@@ -91,19 +102,20 @@ export class AppComponent implements OnInit {
   loadCategories(): void {
     this.categoryService.getCategories().subscribe({
       next: (data) => (this.categories = data),
-      error: () => console.error('Error al cargar categorías'),
+      error: () => this.toast.show('Error al cargar categorías', 'error'),
     });
   }
 
   loadTasks(): void {
     this.loading = true;
-    this.taskService.getTasks(1, 20, this.filterCategoryId ?? undefined).subscribe({
+    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas).subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;
       },
       error: () => {
         this.loading = false;
+        this.toast.show('Error al cargar tareas', 'error');
       },
     });
   }
@@ -119,32 +131,24 @@ export class AppComponent implements OnInit {
 
   createTask(): void {
     if (!this.newTitle.trim()) return;
-
     this.taskService
       .createTask({
         titulo: this.newTitle.trim(),
         descripcion: this.newDescription.trim() || null,
         category_ids: this.selectedCategoryIds,
+        fecha_vencimiento: this.newDueDate ? new Date(this.newDueDate).toISOString() : null,
       })
       .subscribe({
         next: (task) => {
           this.tasks.unshift(task);
           this.newTitle = '';
           this.newDescription = '';
+          this.newDueDate = '';
           this.selectedCategoryIds = [];
+          this.toast.show('Tarea creada', 'success');
         },
-        error: () => console.error('Error al crear tarea'),
+        error: () => this.toast.show('Error al crear tarea', 'error'),
       });
-  }
-
-  updateTask(task: Task): void {
-    this.taskService.updateTask(task.id, {
-      titulo: task.titulo,
-      descripcion: task.descripcion,
-      category_ids: task.categories.map((c) => c.id),
-    }).subscribe({
-      error: () => console.error('Error al actualizar tarea'),
-    });
   }
 
   toggleTask(task: Task): void {
@@ -155,7 +159,7 @@ export class AppComponent implements OnInit {
           this.tasks[index] = updated;
         }
       },
-      error: () => console.error('Error al actualizar tarea'),
+      error: () => this.toast.show('Error al actualizar tarea', 'error'),
     });
   }
 
@@ -163,8 +167,9 @@ export class AppComponent implements OnInit {
     this.taskService.deleteTask(task.id).subscribe({
       next: () => {
         this.tasks = this.tasks.filter((t) => t.id !== task.id);
+        this.toast.show('Tarea eliminada', 'info');
       },
-      error: () => console.error('Error al eliminar tarea'),
+      error: () => this.toast.show('Error al eliminar tarea', 'error'),
     });
   }
 }

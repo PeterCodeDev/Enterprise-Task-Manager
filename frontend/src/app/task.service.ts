@@ -9,22 +9,21 @@ export class TaskService {
 
   constructor(private http: HttpClient) {}
 
-  getTasks(page: number = 1, pageSize: number = 20, categoryId?: number): Observable<Task[]> {
+  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean): Observable<Task[]> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('page_size', pageSize.toString());
     if (categoryId) {
       params = params.set('category_id', categoryId.toString());
     }
+    if (vencidas) {
+      params = params.set('vencidas', 'true');
+    }
     return this.http.get<Task[]>(this.apiUrl, { params });
   }
 
   createTask(task: TaskCreate): Observable<Task> {
     return this.http.post<Task>(this.apiUrl, task);
-  }
-
-  updateTask(taskId: number, task: TaskCreate): Observable<Task> {
-    return this.http.put<Task>(`${this.apiUrl}/${taskId}`, task);
   }
 
   toggleTask(taskId: number): Observable<Task> {

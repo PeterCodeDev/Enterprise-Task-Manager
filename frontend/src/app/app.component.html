@@ -1,6 +1,13 @@
 <div class="container">
   <h1>Enterprise Task Manager</h1>
 
+  <!-- Toast notifications -->
+  <div class="toast-container">
+    <div *ngFor="let t of toast.toasts; let i = index" class="toast" [class]="'toast-' + t.type" (click)="toast.remove(i)">
+      {{ t.message }}
+    </div>
+  </div>
+
   <div *ngIf="!(authService.isLoggedIn$ | async); else taskPanel">
     <div *ngIf="!showRegister">
       <h2>Iniciar Sesión</h2>
@@ -36,52 +43,58 @@
       <button class="btn btn-logout" (click)="logout()">Cerrar sesión</button>
     </div>
 
-    <!-- Category filter -->
-    <div class="category-filter" *ngIf="categories.length > 0">
-      <span class="filter-label">Filtrar:</span>
-      <span
-        class="category-tag"
-        [class.active]="filterCategoryId === null"
-        (click)="filterCategoryId = null; loadTasks()"
-      >Todas</span>
-      <span
-        *ngFor="let cat of categories"
-        class="category-tag"
-        [style.borderColor]="cat.color"
-        [style.color]="filterCategoryId === cat.id ? '#fff' : cat.color"
-        [style.background]="filterCategoryId === cat.id ? cat.color : 'transparent'"
-        [class.active]="filterCategoryId === cat.id"
-        (click)="filterCategoryId = cat.id; loadTasks()"
-      >{{ cat.nombre }}</span>
+    <!-- Filters -->
+    <div class="filter-bar">
+      <div class="category-filter" *ngIf="categories.length > 0">
+        <span class="filter-label">Filtrar:</span>
+        <span class="category-tag" [class.active]="filterCategoryId === null && !showVencidas"
+          (click)="filterCategoryId = null; showVencidas = false; loadTasks()">Todas</span>
+        <span *ngFor="let cat of categories" class="category-tag"
+          [style.borderColor]="cat.color"
+          [style.color]="filterCategoryId === cat.id ? '#fff' : cat.color"
+          [style.background]="filterCategoryId === cat.id ? cat.color : 'transparent'"
+          [class.active]="filterCategoryId === cat.id"
+          (click)="filterCategoryId = cat.id; showVencidas = false; loadTasks()">{{ cat.nombre }}</span>
+        <span class="category-tag overdue-filter" [class.active]="showVencidas"
+          (click)="filterCategoryId = null; showVencidas = !showVencidas; loadTasks()"
+          style="border-color:#ef476f;color:#ef476f">⚠ Vencidas</span>
+      </div>
     </div>
 
     <!-- Create task form -->
     <form class="form-group" (ngSubmit)="createTask()">
       <input type="text" [(ngModel)]="newTitle" name="titulo" placeholder="Título de la tarea" required />
       <input type="text" [(ngModel)]="newDescription" name="descripcion" placeholder="Descripción (opcional)" />
-      <button type="submit" class="btn btn-primary">Añadir Tarea</button>
+      <input type="date" [(ngModel)]="newDueDate" name="dueDate" class="date-input" />
+      <button type="submit" class="btn btn-primary">Añadir</button>
     </form>
 
-    <!-- Category selector for new task -->
+    <!-- Category selector -->
     <div class="category-picker" *ngIf="categories.length > 0">
       <span class="filter-label">Categorías:</span>
-      <span
-        *ngFor="let cat of categories"
-        class="category-tag"
+      <span *ngFor="let cat of categories" class="category-tag"
         [style.borderColor]="cat.color"
         [style.color]="selectedCategoryIds.includes(cat.id) ? '#fff' : cat.color"
         [style.background]="selectedCategoryIds.includes(cat.id) ? cat.color : 'transparent'"
         [class.active]="selectedCategoryIds.includes(cat.id)"
-        (click)="toggleCategory(cat.id)"
-      >{{ cat.nombre }}</span>
+        (click)="toggleCategory(cat.id)">{{ cat.nombre }}</span>
     </div>
 
     <div *ngIf="loading" class="empty-state">Cargando tareas...</div>
 
     <ul class="task-list" *ngIf="!loading">
-      <li *ngFor="let task of tasks" class="task-item" [class.completed]="task.completada">
+      <li *ngFor="let task of tasks" class="task-item"
+        [class.completed]="task.completada"
+        [class.overdue]="isOverdue(task)">
         <div class="task-info">
-          <div class="task-title">{{ task.titulo }}</div>
+          <div class="task-title">
+            {{ task.titulo }}
+            <span class="due-badge" *ngIf="task.fecha_vencimiento && !task.completada"
+              [class.overdue-badge]="isOverdue(task)">
+              {{ isOverdue(task) ? 'Vencida: ' : 'Vence: ' }}
+              {{ task.fecha_vencimiento | date:'dd/MM/yyyy' }}
+            </span>
+          </div>
           <div class="task-desc" *ngIf="task.descripcion">{{ task.descripcion }}</div>
           <div class="task-categories" *ngIf="task.categories.length > 0">
             <span *ngFor="let cat of task.categories" class="category-badge" [style.background]="cat.color">

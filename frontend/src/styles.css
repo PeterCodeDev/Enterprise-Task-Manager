@@ -277,3 +277,71 @@ h2 {
   color: white;
   font-weight: 500;
 }
+
+.date-input {
+  max-width: 180px;
+}
+
+.due-badge {
+  font-size: 0.75rem;
+  color: #888;
+  margin-left: 0.5rem;
+  font-weight: 400;
+}
+
+.overdue-badge {
+  color: #ef476f;
+  font-weight: 600;
+}
+
+.task-item.overdue {
+  border-left: 4px solid #ef476f;
+}
+
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  animation: slideIn 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 250px;
+}
+
+.toast-success {
+  background: #06d6a0;
+}
+
+.toast-error {
+  background: #ef476f;
+}
+
+.toast-info {
+  background: #4361ee;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.filter-bar {
+  margin-bottom: 1rem;
+}
+
+.overdue-filter.active {
+  background: #ef476f !important;
+  color: #fff !important;
+  border-color: #ef476f !important;
+}

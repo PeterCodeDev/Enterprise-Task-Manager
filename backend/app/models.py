@@ -40,6 +40,7 @@ class TaskModel(Base):
     titulo = Column(String(255), nullable=False)
     descripcion = Column(String(1000), nullable=True)
     completada = Column(Boolean, default=False)
+    fecha_vencimiento = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     user = relationship("UserModel", back_populates="tasks")

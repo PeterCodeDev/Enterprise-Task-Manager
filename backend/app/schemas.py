@@ -47,12 +47,14 @@ class TaskCreate(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=255)
     descripcion: Optional[str] = Field(None, max_length=1000)
     category_ids: List[int] = Field(default_factory=list)
+    fecha_vencimiento: Optional[datetime] = None
 
 
 class TaskUpdate(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=255)
     descripcion: Optional[str] = Field(None, max_length=1000)
     category_ids: List[int] = Field(default_factory=list)
+    fecha_vencimiento: Optional[datetime] = None
 
 
 class TaskResponse(BaseModel):
@@ -60,6 +62,7 @@ class TaskResponse(BaseModel):
     titulo: str
     descripcion: Optional[str]
     completada: bool
+    fecha_vencimiento: Optional[datetime] = None
     user_id: int
     categories: List[CategoryResponse] = []
 
