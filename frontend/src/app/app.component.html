@@ -1,0 +1,49 @@
+<div class="container">
+  <h1>Enterprise Task Manager</h1>
+
+  <form class="form-group" (ngSubmit)="createTask()">
+    <input
+      type="text"
+      [(ngModel)]="newTitle"
+      name="titulo"
+      placeholder="Título de la tarea"
+      required
+    />
+    <input
+      type="text"
+      [(ngModel)]="newDescription"
+      name="descripcion"
+      placeholder="Descripción (opcional)"
+    />
+    <button type="submit" class="btn btn-primary">Añadir Tarea</button>
+  </form>
+
+  <div *ngIf="loading" class="empty-state">Cargando tareas...</div>
+
+  <ul class="task-list" *ngIf="!loading">
+    <li
+      *ngFor="let task of tasks"
+      class="task-item"
+      [class.completed]="task.completada"
+    >
+      <div class="task-info">
+        <div class="task-title">{{ task.titulo }}</div>
+        <div class="task-desc" *ngIf="task.descripcion">
+          {{ task.descripcion }}
+        </div>
+      </div>
+      <div class="task-actions">
+        <button class="btn btn-toggle" (click)="toggleTask(task)">
+          {{ task.completada ? 'Reactivar' : 'Completar' }}
+        </button>
+        <button class="btn btn-danger" (click)="deleteTask(task)">
+          Eliminar
+        </button>
+      </div>
+    </li>
+  </ul>
+
+  <div *ngIf="!loading && tasks.length === 0" class="empty-state">
+    No hay tareas. ¡Crea una nueva!
+  </div>
+</div>
