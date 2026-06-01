@@ -1,10 +1,13 @@
+import time
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 
+from app.logging_config import logger
 from app.database import get_db
 from app.models import UserModel, TaskModel
 from app.schemas import (
@@ -13,11 +16,17 @@ from app.schemas import (
 )
 from app.security import get_password_hash, verify_password, create_access_token
 from app.auth import get_current_user
+from app.exceptions import (
+    AppException, ConflictException, NotFoundException,
+    app_exception_handler, validation_exception_handler, general_exception_handler
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Application starting up...")
     yield
+    logger.info("Application shutting down...")
 
 
 app = FastAPI(title="Enterprise Task Manager API", version="2.0.0", lifespan=lifespan)
@@ -35,14 +44,27 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    logger.info(
+        f"{request.method} {request.url.path} -> {response.status_code} ({duration:.3f}s)"
+    )
+    return response
+
+
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
+
+
 @app.post("/api/auth/register", response_model=UserResponse, status_code=201)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(UserModel).filter(UserModel.email == user.email).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
+        raise ConflictException(detail="Email already registered")
     
     db_user = UserModel(
         email=user.email,
@@ -51,6 +73,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    logger.info(f"User registered: {db_user.email}")
     return db_user
 
 
@@ -65,18 +88,29 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         )
     
     access_token = create_access_token(data={"sub": str(db_user.id)})
+    logger.info(f"User logged in: {db_user.email}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.get("/api/tasks", response_model=List[TaskResponse])
 def list_tasks(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    completada: Optional[bool] = Query(None, description="Filter by completion"),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    query = db.query(TaskModel).filter(TaskModel.user_id == current_user.id)
+    
+    if completada is not None:
+        query = query.filter(TaskModel.completada == completada)
+    
+    offset = (page - 1) * page_size
     return (
-        db.query(TaskModel)
-        .filter(TaskModel.user_id == current_user.id)
+        query
         .order_by(TaskModel.id.desc())
+        .offset(offset)
+        .limit(page_size)
         .all()
     )
 
@@ -96,6 +130,7 @@ def create_task(
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+    logger.info(f"Task created: {db_task.titulo} by user {current_user.email}")
     return db_task
 
 
@@ -111,7 +146,7 @@ def get_task(
         .first()
     )
     if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise NotFoundException(detail="Tarea no encontrada")
     return task
 
 
@@ -128,7 +163,7 @@ def update_task(
         .first()
     )
     if not db_task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise NotFoundException(detail="Tarea no encontrada")
     db_task.titulo = task.titulo
     db_task.descripcion = task.descripcion
     db.commit()
@@ -148,7 +183,7 @@ def toggle_task(
         .first()
     )
     if not db_task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise NotFoundException(detail="Tarea no encontrada")
     db_task.completada = not db_task.completada
     db.commit()
     db.refresh(db_task)
@@ -167,7 +202,7 @@ def delete_task(
         .first()
     )
     if not db_task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise NotFoundException(detail="Tarea no encontrada")
     db.delete(db_task)
     db.commit()
 

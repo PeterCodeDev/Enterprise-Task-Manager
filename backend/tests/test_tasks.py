@@ -29,7 +29,7 @@ def test_register_duplicate_email(client):
         "email": "dup@example.com",
         "password": "password456"
     })
-    assert response.status_code == 400
+    assert response.status_code == 409
 
 
 def test_register_short_password(client):
