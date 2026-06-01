@@ -1,26 +1,172 @@
-# Enterprise Task Manager 🚀
+# Enterprise Task Manager
 
-Este proyecto es un **MVP (Producto Mínimo Viable) Full-Stack** diseñado bajo estándares profesionales de la industria. No es solo una aplicación funcional, sino una demostración práctica de arquitectura contenerizada, automatización de infraestructura (DevOps) y buenas prácticas en el ciclo de vida del desarrollo de software.
+API REST de gestión de tareas con autenticación JWT, construida con **FastAPI + PostgreSQL + Docker**.
 
-La aplicación consta de un ecosistema de microservicios independientes que se comunican de forma eficiente, configurados para replicar un entorno de producción real.
+## Stack tecnológico
 
----
+| Capa | Tecnología |
+|---|---|
+| Backend | Python 3.11, FastAPI, SQLAlchemy |
+| Base de datos | PostgreSQL 15 |
+| Autenticación | JWT + bcrypt |
+| Migraciones | Alembic |
+| Testing | pytest |
+| Linting | Ruff |
+| Frontend | Angular 17 + Nginx |
+| Contenedores | Docker + Docker Compose |
+| CI/CD | GitHub Actions |
 
-## 🛠️ Arquitectura y Tecnologías
+## Requisitos
 
-El proyecto está completamente modularizado y automatizado utilizando el siguiente stack tecnológico:
+- Docker y Docker Compose
+- Python 3.11+ (solo para desarrollo local)
 
-* **Frontend:** Angular 20+ estructurado de forma modular, utilizando `HttpClient` para el consumo de APIs y optimizado en producción mediante un servidor **Nginx**.
-* **Backend:** API REST robusta y asíncrona construida con **Python (FastAPI)**, utilizando **SQLAlchemy** como ORM y validación de datos estricta con **Pydantic**.
-* **Base de Datos:** **PostgreSQL 15** para la persistencia de datos relacionales en un entorno aislado.
-* **Contenerización:** **Docker** para el aislamiento de entornos individuales y **Docker Compose** para la orquestación y conectividad de la red local.
-* **CI/CD (Automatización):** Flujo de trabajo automatizado en la nube mediante **GitHub Actions**, encargado de compilar, empaquetar y subir las imágenes optimizadas a **Docker Hub** tras cada actualización.
+## Instalación rápida
 
----
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/PeterCodeDev/Enterprise-Task-Manager.git
+cd Enterprise-Task-Manager
 
-## 🚀 Características Clave del Proyecto
+# 2. (Opcional) Personalizar variables de entorno
+cp .env.example .env
 
-* **Arquitectura Multi-contenedor:** Todo el sistema se levanta localmente con un único comando (`docker-compose up --build`), garantizando el principio de *"funciona en mi máquina y en la tuya"*.
-* **Producción Ready:** El frontend de Angular se compila en una imagen multi-etapa (*Multi-stage build*) para reducir su peso y se sirve a través de un proxy inverso con **Nginx**.
-* **Seguridad e Inyección de Dependencias:** Gestión de credenciales críticas (base de datos y tokens de Docker Hub) protegidas mediante **GitHub Secrets** y variables de entorno.
-* **Pipeline de Despliegue Continuo:** Automatización total del empaquetado de imágenes sin intervención humana.
+# 3. Levantar todos los servicios
+docker-compose up --build
+
+# 4. Acceder
+# Frontend: http://localhost
+# API:      http://localhost:8000
+# Swagger:  http://localhost:8000/docs
+```
+
+## Endpoints de la API
+
+### Auth
+| Método | Endpoint | Descripción | Auth |
+|---|---|---|---|
+| POST | `/api/auth/register` | Registro de usuario | No |
+| POST | `/api/auth/login` | Login y obtener JWT | No |
+
+### Tareas
+| Método | Endpoint | Descripción | Auth |
+|---|---|---|---|
+| GET | `/api/tasks` | Listar tareas (paginado) | JWT |
+| POST | `/api/tasks` | Crear tarea | JWT |
+| GET | `/api/tasks/{id}` | Obtener tarea | JWT |
+| PUT | `/api/tasks/{id}` | Actualizar tarea | JWT |
+| PATCH | `/api/tasks/{id}/toggle` | Marcar/desmarcar completada | JWT |
+| DELETE | `/api/tasks/{id}` | Eliminar tarea | JWT |
+
+### Sistema
+| Método | Endpoint | Descripción |
+|---|---|---|
+| GET | `/api/health` | Health check |
+
+### Parámetros de paginación (`GET /api/tasks`)
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `page` | int | 1 | Número de página |
+| `page_size` | int | 20 | Items por página (máx 100) |
+| `completada` | bool | - | Filtrar por estado |
+
+## Uso de la API
+
+```bash
+# 1. Registrar usuario
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@test.com","password":"pass123"}'
+
+# 2. Obtener token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@test.com","password":"pass123"}'
+
+# 3. Usar token para crear tarea
+curl -X POST http://localhost:8000/api/tasks \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"titulo":"Mi tarea","descripcion":"Descripción de la tarea"}'
+
+# 4. Listar tareas con paginación
+curl "http://localhost:8000/api/tasks?page=1&page_size=10&completada=false" \
+  -H "Authorization: Bearer TU_TOKEN"
+```
+
+## Comandos útiles
+
+```bash
+# Ejecutar tests
+docker-compose run --rm backend pytest tests/ -v
+
+# Crear nueva migración
+docker-compose run --rm backend alembic revision --autogenerate -m "descripcion"
+
+# Aplicar migraciones
+docker-compose run --rm backend alembic upgrade head
+
+# Formatear código (Ruff)
+pip install ruff
+ruff check backend/ --fix
+ruff format backend/
+
+# Pre-commit hooks
+pip install pre-commit
+pre-commit install
+```
+
+## Estructura del proyecto
+
+```
+Enterprise-Task-Manager/
+├── docker-compose.yml
+├── .env.example
+├── .pre-commit-config.yaml
+├── .github/workflows/deploy.yml
+├── backend/
+│   ├── Dockerfile
+│   ├── entrypoint.sh
+│   ├── requirements.txt
+│   ├── pyproject.toml
+│   ├── alembic.ini
+│   ├── alembic/
+│   │   ├── env.py
+│   │   └── versions/
+│   ├── app/
+│   │   ├── main.py           ← Endpoints
+│   │   ├── models.py         ← Modelos SQLAlchemy
+│   │   ├── schemas.py        ← Validación Pydantic
+│   │   ├── database.py       ← Conexión DB
+│   │   ├── security.py       ← JWT + bcrypt
+│   │   ├── auth.py           ← Dependencia auth
+│   │   ├── exceptions.py     ← Manejo de errores
+│   │   └── logging_config.py ← Logging estructurado
+│   └── tests/
+│       ├── conftest.py
+│       └── test_tasks.py
+└── frontend/
+    └── ... (Angular 17 + Nginx)
+```
+
+## Variables de entorno
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `POSTGRES_USER` | taskuser | Usuario PostgreSQL |
+| `POSTGRES_PASSWORD` | taskpass | Contraseña PostgreSQL |
+| `POSTGRES_DB` | taskdb | Nombre BD |
+| `DATABASE_URL` | postgresql://... | URL conexión BD |
+| `SECRET_KEY` | dev-secret... | Clave firma JWT (cambiar en prod) |
+| `LOG_LEVEL` | INFO | Nivel de logging |
+
+## CI/CD
+
+El workflow de GitHub Actions en cada push a `main`:
+1. Ejecuta 22 tests
+2. Construye imágenes Docker
+3. Publica en GitHub Container Registry
+
+## Licencia
+
+MIT
