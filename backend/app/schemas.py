@@ -11,9 +11,18 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: str
+    nombre: Optional[str] = None
+    bio: Optional[str] = None
+    avatar_color: str = "#4361ee"
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserUpdate(BaseModel):
+    nombre: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = Field(None, max_length=500)
+    avatar_color: Optional[str] = Field(None, max_length=7)
 
 
 class UserLogin(BaseModel):

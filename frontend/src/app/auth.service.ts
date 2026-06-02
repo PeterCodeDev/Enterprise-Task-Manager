@@ -6,6 +6,9 @@ import { tap } from 'rxjs/operators';
 export interface User {
   id: number;
   email: string;
+  nombre: string | null;
+  bio: string | null;
+  avatar_color: string;
   created_at: string;
 }
 
@@ -62,5 +65,13 @@ export class AuthService {
       old_password: oldPassword,
       new_password: newPassword,
     });
+  }
+
+  getProfile(): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/profile`);
+  }
+
+  updateProfile(data: { nombre?: string; bio?: string; avatar_color?: string }): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/profile`, data);
   }
 }

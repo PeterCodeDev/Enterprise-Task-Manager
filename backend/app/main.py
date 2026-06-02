@@ -16,7 +16,7 @@ from app.logging_config import logger
 from app.database import get_db
 from app.models import UserModel, TaskModel, CategoryModel, SubtaskModel, AttachmentModel
 from app.schemas import (
-    UserCreate, UserResponse, UserLogin, Token,
+    UserCreate, UserResponse, UserLogin, Token, UserUpdate,
     TaskCreate, TaskUpdate, TaskResponse,
     CategoryCreate, CategoryResponse,
     PasswordChange,
@@ -409,6 +409,85 @@ def delete_attachment(
         os.remove(filepath)
     db.delete(att)
     db.commit()
+
+
+@app.get("/api/auth/profile", response_model=UserResponse)
+def get_profile(current_user: UserModel = Depends(get_current_user)):
+    return current_user
+
+
+@app.put("/api/auth/profile", response_model=UserResponse)
+def update_profile(
+    data: UserUpdate,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if data.nombre is not None:
+        current_user.nombre = data.nombre
+    if data.bio is not None:
+        current_user.bio = data.bio
+    if data.avatar_color is not None:
+        current_user.avatar_color = data.avatar_color
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.post("/api/tasks/import-csv", status_code=201)
+async def import_csv(
+    file: UploadFile = File(...),
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    import csv, io
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+    count = 0
+    for row in reader:
+        titulo = row.get("Título", row.get("titulo", "")).strip()
+        if not titulo:
+            continue
+        task = TaskModel(
+            titulo=titulo,
+            descripcion=row.get("Descripción", row.get("descripcion", "")).strip() or None,
+            prioridad=row.get("Prioridad", row.get("prioridad", "media")).strip() or "media",
+            estado=row.get("Estado", row.get("estado", "pendiente")).strip() or "pendiente",
+            user_id=current_user.id,
+        )
+        db.add(task)
+        count += 1
+    db.commit()
+    return {"imported": count}
+
+
+@app.get("/api/tasks/ical")
+def ical_feed(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    tasks = db.query(TaskModel).filter(
+        TaskModel.user_id == current_user.id,
+        TaskModel.fecha_vencimiento.isnot(None),
+        TaskModel.completada == False,
+    ).all()
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ETM//ES"]
+    for t in tasks:
+        dt = t.fecha_vencimiento.strftime("%Y%m%d")
+        lines += [
+            "BEGIN:VEVENT",
+            f"DTSTART;VALUE=DATE:{dt}",
+            f"DTEND;VALUE=DATE:{dt}",
+            f"SUMMARY:{t.titulo}",
+            f"UID:etm-task-{t.id}@taskmanager",
+            "END:VEVENT",
+        ]
+    lines += ["END:VCALENDAR"]
+    return StreamingResponse(
+        iter(["\r\n".join(lines)]),
+        media_type="text/calendar",
+        headers={"Content-Disposition": "attachment; filename=tareas.ics"}
+    )
 
 
 @app.get("/api/health")

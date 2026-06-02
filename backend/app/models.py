@@ -18,6 +18,9 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
+    nombre = Column(String(100), nullable=True)
+    bio = Column(String(500), nullable=True)
+    avatar_color = Column(String(7), default="#4361ee", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tasks = relationship("TaskModel", back_populates="user", cascade="all, delete-orphan")

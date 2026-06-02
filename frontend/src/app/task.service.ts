@@ -78,4 +78,14 @@ export class TaskService {
   getAttachmentUrl(attachmentId: number): string {
     return `http://localhost:8000/api/attachments/${attachmentId}`;
   }
+
+  importCsv(file: File): Observable<{ imported: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ imported: number }>(`${this.apiUrl}/import-csv`, formData);
+  }
+
+  getIcalUrl(): string {
+    return 'http://localhost:8000/api/tasks/ical';
+  }
 }

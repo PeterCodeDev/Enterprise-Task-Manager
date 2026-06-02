@@ -3,6 +3,7 @@
   <div class="toast-container">
     <div *ngFor="let t of toast.toasts; let i = index" class="toast" [class]="'toast-' + t.type" (click)="toast.remove(i)">
       {{ t.message }}
+      <button *ngIf="t.undoCallback" class="toast-undo" (click)="$event.stopPropagation(); t.undoCallback(); toast.remove(i)">Deshacer</button>
     </div>
   </div>
 
@@ -64,6 +65,7 @@
             {{ theme.isDark ? '☀️' : '🌙' }}
           </button>
           <span class="sidebar-email">{{ userEmail }}</span>
+          <button class="btn btn-link btn-sm" (click)="openProfile()">👤 Perfil</button>
           <button class="btn btn-link btn-sm" (click)="showPasswordPanel = true">Cambiar contraseña</button>
           <button class="btn btn-logout" (click)="logout()">Salir</button>
         </div>
@@ -179,7 +181,10 @@
               style="border-color:#06d6a0;color:#06d6a0">✓ Completadas</span>
             <span class="separator">|</span>
             <span class="category-tag" (click)="toggleSelectAll()">☐ Todos</span>
-            <button class="btn btn-secondary btn-sm" (click)="exportCsv()">📥 CSV</button>
+            <input type="file" #csvInput style="display:none" accept=".csv" (change)="importCsv(csvInput)" />
+            <button class="btn btn-secondary btn-sm" (click)="csvInput.click()">📥 Importar</button>
+            <button class="btn btn-secondary btn-sm" (click)="exportCsv()">📤 CSV</button>
+            <button class="btn btn-secondary btn-sm" (click)="copyIcalUrl()">📅 iCal</button>
           </div>
 
           <!-- Create form (collapsible) -->
@@ -468,6 +473,26 @@
         <div class="modal-actions">
           <button class="btn btn-danger" (click)="deleteCategory()">Confirmar</button>
           <button class="btn btn-secondary" (click)="cancelDeleteCategory()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile modal -->
+    <div class="modal-overlay" *ngIf="showProfilePanel" (click)="showProfilePanel = false">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">Perfil</h3>
+        <div class="profile-avatar" [style.background]="profileColor" style="margin:0 auto 1rem">
+          {{ (userEmail || '?').charAt(0).toUpperCase() }}
+        </div>
+        <input type="text" [(ngModel)]="profileNombre" name="profileNombre" placeholder="Nombre" class="create-input" style="margin-bottom:0.75rem" />
+        <textarea [(ngModel)]="profileBio" name="profileBio" placeholder="Bio (opcional)" class="create-input create-textarea" rows="2" style="margin-bottom:0.75rem"></textarea>
+        <div class="cat-create" style="margin-bottom:1rem">
+          <span style="font-size:0.85rem;color:var(--text-muted)">Color avatar:</span>
+          <input type="color" [(ngModel)]="profileColor" name="profileColor" class="cat-color" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" (click)="saveProfile()">Guardar</button>
+          <button class="btn btn-secondary" (click)="showProfilePanel = false">Cancelar</button>
         </div>
       </div>
     </div>

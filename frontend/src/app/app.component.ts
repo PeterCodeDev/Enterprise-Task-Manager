@@ -52,6 +52,14 @@ export class AppComponent implements OnInit {
   oldPassword = '';
   newPassword = '';
 
+  showProfilePanel = false;
+  profileNombre = '';
+  profileBio = '';
+  profileColor = '#4361ee';
+
+  undoDeleteTimer: ReturnType<typeof setTimeout> | null = null;
+  undoDeleteTask: Task | null = null;
+
   loginEmail = '';
   loginPassword = '';
   registerEmail = '';
@@ -357,13 +365,19 @@ export class AppComponent implements OnInit {
     if (!this.deleteConfirmTask) return;
     const task = this.deleteConfirmTask;
     this.deleteConfirmTask = null;
-    this.taskService.deleteTask(task.id).subscribe({
-      next: () => {
-        this.tasks = this.tasks.filter((t) => t.id !== task.id);
-        this.toast.show('Tarea eliminada', 'info');
-      },
-      error: () => this.toast.show('Error al eliminar tarea', 'error'),
+    this.undoDeleteTask = task;
+    this.tasks = this.tasks.filter((t) => t.id !== task.id);
+    this.toast.showUndo('Tarea eliminada', () => {
+      this.tasks = [task, ...this.tasks];
+      this.undoDeleteTask = null;
+      this.toast.show('Eliminación deshecha', 'info');
     });
+    this.undoDeleteTimer = setTimeout(() => {
+      this.taskService.deleteTask(task.id).subscribe({
+        error: () => this.toast.show('Error al eliminar tarea', 'error'),
+      });
+      this.undoDeleteTask = null;
+    }, 5000);
   }
 
   createCategory(): void {
@@ -654,6 +668,50 @@ export class AppComponent implements OnInit {
         this.toast.show('Archivo eliminado', 'info');
       },
       error: () => this.toast.show('Error al eliminar archivo', 'error'),
+    });
+  }
+
+  openProfile(): void {
+    this.showProfilePanel = true;
+    this.authService.getProfile().subscribe({
+      next: (user) => {
+        this.profileNombre = user.nombre || '';
+        this.profileBio = user.bio || '';
+        this.profileColor = user.avatar_color;
+      },
+    });
+  }
+
+  saveProfile(): void {
+    this.authService.updateProfile({
+      nombre: this.profileNombre.trim() || undefined,
+      bio: this.profileBio.trim() || undefined,
+      avatar_color: this.profileColor,
+    }).subscribe({
+      next: () => {
+        this.showProfilePanel = false;
+        this.toast.show('Perfil actualizado', 'success');
+      },
+      error: () => this.toast.show('Error al actualizar perfil', 'error'),
+    });
+  }
+
+  importCsv(fileInput: HTMLInputElement): void {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    this.taskService.importCsv(file).subscribe({
+      next: (res) => {
+        this.toast.show(`${res.imported} tareas importadas`, 'success');
+        this.loadTasks();
+      },
+      error: () => this.toast.show('Error al importar CSV', 'error'),
+    });
+    fileInput.value = '';
+  }
+
+  copyIcalUrl(): void {
+    navigator.clipboard.writeText(this.taskService.getIcalUrl()).then(() => {
+      this.toast.show('URL del calendario copiada. Pégala en Google Calendar → Añadir por URL', 'info');
     });
   }
 }

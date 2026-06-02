@@ -763,6 +763,25 @@ input:focus, select:focus, textarea:focus {
   animation: slideIn 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 250px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toast-undo {
+  margin-left: auto;
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  padding: 0.25rem 0.7rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.toast-undo:hover {
+  background: rgba(255,255,255,0.4);
 }
 
 .toast-success {
@@ -1280,6 +1299,19 @@ input:focus, select:focus, textarea:focus {
 
 .attach-add {
   margin-top: 0.5rem;
+}
+
+/* Profile */
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
 }
 
 .modal-title {
