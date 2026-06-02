@@ -3,6 +3,7 @@ import { TaskService } from './task.service';
 import { AuthService } from './auth.service';
 import { CategoryService } from './category.service';
 import { ToastService } from './toast.service';
+import { ThemeService } from './theme.service';
 import { Task, Category } from './task.model';
 
 @Component({
@@ -51,9 +52,11 @@ export class AppComponent implements OnInit {
     private categoryService: CategoryService,
     public authService: AuthService,
     public toast: ToastService,
+    public theme: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.theme.init();
     if (this.authService.hasToken()) {
       this.loadCategories();
       this.loadTasks();

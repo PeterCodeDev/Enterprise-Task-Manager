@@ -40,7 +40,12 @@
   <ng-template #taskPanel>
     <div class="header-row">
       <span class="user-email">{{ userEmail }}</span>
-      <button class="btn btn-logout" (click)="logout()">Cerrar sesión</button>
+      <div class="header-actions">
+        <button class="btn btn-icon-theme" (click)="theme.toggle()" [title]="theme.isDark ? 'Modo claro' : 'Modo oscuro'">
+          {{ theme.isDark ? '☀️' : '🌙' }}
+        </button>
+        <button class="btn btn-logout" (click)="logout()">Cerrar sesión</button>
+      </div>
     </div>
 
     <!-- Search -->
