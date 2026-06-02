@@ -33,6 +33,7 @@ export class AppComponent implements OnInit {
   editPriority = 'media';
   editCategoryIds: number[] = [];
   deleteConfirmTask: Task | null = null;
+  detailTask: Task | null = null;
 
   showCategoryPanel = false;
   newCategoryName = '';
@@ -311,5 +312,25 @@ export class AppComponent implements OnInit {
       },
       error: () => this.toast.show('Error al eliminar categoría', 'error'),
     });
+  }
+
+  openDetail(task: Task): void {
+    this.detailTask = task;
+  }
+
+  closeDetail(): void {
+    this.detailTask = null;
+  }
+
+  editFromDetail(): void {
+    if (!this.detailTask) return;
+    this.startEdit(this.detailTask);
+    this.closeDetail();
+  }
+
+  deleteFromDetail(): void {
+    if (!this.detailTask) return;
+    this.confirmDelete(this.detailTask);
+    this.closeDetail();
   }
 }
