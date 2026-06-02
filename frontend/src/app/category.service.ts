@@ -16,4 +16,8 @@ export class CategoryService {
   createCategory(nombre: string, color: string): Observable<Category> {
     return this.http.post<Category>(this.apiUrl, { nombre, color });
   }
+
+  deleteCategory(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
 }

@@ -461,3 +461,96 @@ h2 {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+.category-manager {
+  margin-bottom: 1.5rem;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #4361ee;
+  color: #4361ee;
+}
+
+.btn-outline:hover {
+  background: #4361ee;
+  color: white;
+}
+
+.category-panel {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.cat-create {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.cat-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.cat-input:focus {
+  outline: none;
+  border-color: #4361ee;
+}
+
+.cat-color {
+  width: 40px;
+  height: 36px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.cat-list {
+  list-style: none;
+}
+
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cat-item:last-child {
+  border-bottom: none;
+}
+
+.cat-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.cat-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.btn-outline-danger {
+  background: transparent;
+  border: 1px solid #ef476f;
+  color: #ef476f;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+}
+
+.btn-outline-danger:hover {
+  background: #ef476f;
+  color: white;
+}
