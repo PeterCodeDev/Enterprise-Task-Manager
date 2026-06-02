@@ -1,10 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { TaskService } from './task.service';
 import { AuthService } from './auth.service';
 import { CategoryService } from './category.service';
 import { ToastService } from './toast.service';
 import { ThemeService } from './theme.service';
-import { Task, Category, Subtask, Attachment } from './task.model';
+import { Task, Category, Subtask, Attachment, Comment } from './task.model';
 
 @Component({
   selector: 'app-root',
@@ -19,6 +19,7 @@ export class AppComponent implements OnInit {
   newDueDate = '';
   newPriority = 'media';
   newEstado = 'pendiente';
+  newRecurrencia = '';
   selectedCategoryIds: number[] = [];
   filterCategoryId: number | null = null;
   filterPriority: string | null = null;
@@ -39,9 +40,13 @@ export class AppComponent implements OnInit {
   editDueDate = '';
   editPriority = 'media';
   editEstado = 'pendiente';
+  editRecurrencia = '';
   editCategoryIds: number[] = [];
   deleteConfirmTask: Task | null = null;
   detailTask: Task | null = null;
+
+  newCommentText = '';
+  showShortcuts = false;
 
   showCategoryPanel = false;
   newCategoryName = '';
@@ -244,6 +249,7 @@ export class AppComponent implements OnInit {
       next: (data) => {
         this.tasks = data;
         this.loading = false;
+        this.checkNotifications();
       },
       error: () => {
         this.loading = false;
@@ -270,6 +276,7 @@ export class AppComponent implements OnInit {
         category_ids: this.selectedCategoryIds,
         prioridad: this.newPriority,
         estado: this.newEstado,
+        recurrencia: this.newRecurrencia || null,
         fecha_vencimiento: this.newDueDate ? new Date(this.newDueDate).toISOString() : null,
       })
       .subscribe({
@@ -294,6 +301,7 @@ export class AppComponent implements OnInit {
     this.editDescription = task.descripcion || '';
     this.editPriority = task.prioridad;
     this.editEstado = task.estado;
+    this.editRecurrencia = task.recurrencia || '';
     this.editDueDate = task.fecha_vencimiento
       ? new Date(task.fecha_vencimiento).toISOString().slice(0, 10)
       : '';
@@ -326,6 +334,7 @@ export class AppComponent implements OnInit {
         category_ids: this.editCategoryIds,
         prioridad: this.editPriority,
         estado: this.editEstado,
+        recurrencia: this.editRecurrencia || null,
         fecha_vencimiento: this.editDueDate ? new Date(this.editDueDate).toISOString() : null,
       })
       .subscribe({
@@ -633,6 +642,7 @@ export class AppComponent implements OnInit {
       category_ids: task.categories.map((c) => c.id),
       prioridad: task.prioridad,
       estado: estado,
+      recurrencia: task.recurrencia,
       fecha_vencimiento: task.fecha_vencimiento,
     }).subscribe({
       next: (updated) => {
@@ -713,5 +723,89 @@ export class AppComponent implements OnInit {
     navigator.clipboard.writeText(this.taskService.getIcalUrl()).then(() => {
       this.toast.show('URL del calendario copiada. Pégala en Google Calendar → Añadir por URL', 'info');
     });
+  }
+
+  openDetailAndLoadComments(task: Task): void {
+    this.openDetail(task);
+    this.taskService.getComments(task.id).subscribe({
+      next: (comments) => { task.comments = comments; },
+    });
+  }
+
+  addComment(task: Task): void {
+    if (!this.newCommentText.trim()) return;
+    this.taskService.createComment(task.id, this.newCommentText.trim()).subscribe({
+      next: (comment) => {
+        task.comments.push(comment);
+        this.newCommentText = '';
+      },
+      error: () => this.toast.show('Error al añadir comentario', 'error'),
+    });
+  }
+
+  deleteComment(comment: Comment, task: Task): void {
+    this.taskService.deleteComment(comment.id).subscribe({
+      next: () => {
+        task.comments = task.comments.filter((c) => c.id !== comment.id);
+      },
+    });
+  }
+
+  exportBackup(): void {
+    this.taskService.exportBackup().subscribe((data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'backup-etm.json'; a.click();
+      window.URL.revokeObjectURL(url);
+      this.toast.show('Backup exportado', 'success');
+    });
+  }
+
+  importBackup(fileInput: HTMLInputElement): void {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    this.taskService.importBackup(file).subscribe({
+      next: (res) => {
+        this.toast.show(`${res.imported} tareas restauradas`, 'success');
+        this.loadTasks();
+      },
+      error: () => this.toast.show('Error al importar backup', 'error'),
+    });
+    fileInput.value = '';
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboard(event: KeyboardEvent): void {
+    if ((event.target as HTMLElement).tagName === 'INPUT' || (event.target as HTMLElement).tagName === 'TEXTAREA' || (event.target as HTMLElement).tagName === 'SELECT') {
+      if (event.key === 'Escape') (event.target as HTMLElement).blur();
+      return;
+    }
+    if (this.currentView !== 'tasks' && this.currentView !== 'kanban') return;
+    switch (event.key) {
+      case 'n': this.setView('tasks'); this.showCreateForm = true; break;
+      case '/': this.setView('tasks'); setTimeout(() => document.querySelector<HTMLInputElement>('.search-input')?.focus(), 100); break;
+      case 'Escape': this.showCreateForm = false; this.closeDetail(); this.cancelEdit(); break;
+      case '?': this.showShortcuts = !this.showShortcuts; break;
+    }
+  }
+
+  checkNotifications(): void {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    if (Notification.permission !== 'granted') return;
+    const overdue = this.tasks.filter((t) => !t.completada && this.isOverdue(t));
+    const today = this.tasks.filter((t) => {
+      if (!t.fecha_vencimiento || t.completada) return false;
+      return new Date(t.fecha_vencimiento).toDateString() === new Date().toDateString();
+    });
+    if (overdue.length > 0) {
+      new Notification(`${overdue.length} tareas vencidas`, { body: overdue.map((t) => t.titulo).join(', '), icon: '/assets/icon-192.svg' });
+    }
+    if (today.length > 0) {
+      new Notification(`${today.length} tareas para hoy`, { body: today.map((t) => t.titulo).join(', '), icon: '/assets/icon-192.svg' });
+    }
   }
 }

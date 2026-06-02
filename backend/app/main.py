@@ -10,11 +10,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text, case
 import os
 import shutil
+import json
+from datetime import datetime as dt, timedelta
 
 from app.settings import settings
 from app.logging_config import logger
 from app.database import get_db
-from app.models import UserModel, TaskModel, CategoryModel, SubtaskModel, AttachmentModel
+from app.models import UserModel, TaskModel, CategoryModel, SubtaskModel, AttachmentModel, CommentModel
 from app.schemas import (
     UserCreate, UserResponse, UserLogin, Token, UserUpdate,
     TaskCreate, TaskUpdate, TaskResponse,
@@ -22,6 +24,7 @@ from app.schemas import (
     PasswordChange,
     SubtaskCreate, SubtaskResponse,
     AttachmentResponse,
+    CommentCreate, CommentResponse,
 )
 from app.security import get_password_hash, verify_password, create_access_token
 from app.auth import get_current_user
@@ -199,6 +202,7 @@ def create_task(
         completada=False,
         prioridad=task.prioridad,
         estado=task.estado,
+        recurrencia=task.recurrencia,
         fecha_vencimiento=task.fecha_vencimiento,
         user_id=current_user.id,
     )
@@ -240,6 +244,7 @@ def update_task(
     db_task.descripcion = task.descripcion
     db_task.prioridad = task.prioridad
     db_task.estado = task.estado
+    db_task.recurrencia = task.recurrencia
     db_task.fecha_vencimiento = task.fecha_vencimiento
     db_task.categories = _get_categories(db, task.category_ids)
     db.commit()
@@ -260,6 +265,20 @@ def toggle_task(
         raise NotFoundException(detail="Tarea no encontrada")
     db_task.completada = not db_task.completada
     db_task.estado = "completada" if db_task.completada else "pendiente"
+    if db_task.completada and db_task.recurrencia and db_task.fecha_vencimiento:
+        new_task = TaskModel(
+            titulo=db_task.titulo,
+            descripcion=db_task.descripcion,
+            prioridad=db_task.prioridad,
+            estado="pendiente",
+            recurrencia=db_task.recurrencia,
+            completada=False,
+            user_id=current_user.id,
+        )
+        delta = {"diaria": timedelta(days=1), "semanal": timedelta(days=7), "mensual": timedelta(days=30)}
+        new_task.fecha_vencimiento = db_task.fecha_vencimiento + delta.get(db_task.recurrencia, timedelta(days=7))
+        new_task.categories = db_task.categories
+        db.add(new_task)
     db.commit()
     db.refresh(db_task)
     return db_task
@@ -348,146 +367,103 @@ def delete_subtask(
     db.commit()
 
 
-UPLOAD_DIR = "/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-
-@app.post("/api/tasks/{task_id}/attachments", response_model=AttachmentResponse, status_code=201)
-async def upload_attachment(
+@app.get("/api/tasks/{task_id}/comments", response_model=List[CommentResponse])
+def list_comments(
     task_id: int,
-    file: UploadFile = File(...),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     task = db.query(TaskModel).filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id).first()
     if not task:
         raise NotFoundException(detail="Tarea no encontrada")
-    safe_name = f"{task_id}_{int(__import__('time').time())}_{file.filename}"
-    filepath = os.path.join(UPLOAD_DIR, safe_name)
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    attachment = AttachmentModel(
-        task_id=task_id, filename=safe_name, original_name=file.filename,
-        size=os.path.getsize(filepath)
-    )
-    db.add(attachment)
-    db.commit()
-    db.refresh(attachment)
-    return attachment
+    return task.comments
 
 
-@app.get("/api/attachments/{attachment_id}")
-async def download_attachment(
-    attachment_id: int,
+@app.post("/api/tasks/{task_id}/comments", response_model=CommentResponse, status_code=201)
+def create_comment(
+    task_id: int,
+    comment: CommentCreate,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    att = db.query(AttachmentModel).join(TaskModel).filter(
-        AttachmentModel.id == attachment_id, TaskModel.user_id == current_user.id
+    task = db.query(TaskModel).filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id).first()
+    if not task:
+        raise NotFoundException(detail="Tarea no encontrada")
+    db_comment = CommentModel(task_id=task_id, texto=comment.texto)
+    db.add(db_comment)
+    db.commit()
+    db.refresh(db_comment)
+    return db_comment
+
+
+@app.delete("/api/comments/{comment_id}", status_code=204)
+def delete_comment(
+    comment_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    comment = db.query(CommentModel).join(TaskModel).filter(
+        CommentModel.id == comment_id, TaskModel.user_id == current_user.id
     ).first()
-    if not att:
-        raise NotFoundException(detail="Archivo no encontrado")
-    filepath = os.path.join(UPLOAD_DIR, att.filename)
-    if not os.path.exists(filepath):
-        raise NotFoundException(detail="Archivo no encontrado")
-    return FileResponse(filepath, filename=att.original_name)
-
-
-@app.delete("/api/attachments/{attachment_id}", status_code=204)
-def delete_attachment(
-    attachment_id: int,
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    att = db.query(AttachmentModel).join(TaskModel).filter(
-        AttachmentModel.id == attachment_id, TaskModel.user_id == current_user.id
-    ).first()
-    if not att:
-        raise NotFoundException(detail="Archivo no encontrado")
-    filepath = os.path.join(UPLOAD_DIR, att.filename)
-    if os.path.exists(filepath):
-        os.remove(filepath)
-    db.delete(att)
+    if not comment:
+        raise NotFoundException(detail="Comentario no encontrado")
+    db.delete(comment)
     db.commit()
 
 
-@app.get("/api/auth/profile", response_model=UserResponse)
-def get_profile(current_user: UserModel = Depends(get_current_user)):
-    return current_user
-
-
-@app.put("/api/auth/profile", response_model=UserResponse)
-def update_profile(
-    data: UserUpdate,
+@app.get("/api/backup/export")
+def backup_export(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if data.nombre is not None:
-        current_user.nombre = data.nombre
-    if data.bio is not None:
-        current_user.bio = data.bio
-    if data.avatar_color is not None:
-        current_user.avatar_color = data.avatar_color
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+    tasks = db.query(TaskModel).filter(TaskModel.user_id == current_user.id).all()
+    data = {
+        "version": 1,
+        "categories": [{"nombre": c.nombre, "color": c.color} for c in
+                       db.query(CategoryModel).order_by(CategoryModel.nombre).all()],
+        "tasks": [{
+            "titulo": t.titulo, "descripcion": t.descripcion, "completada": t.completada,
+            "prioridad": t.prioridad, "estado": t.estado, "recurrencia": t.recurrencia,
+            "fecha_vencimiento": t.fecha_vencimiento.isoformat() if t.fecha_vencimiento else None,
+            "categories": [c.nombre for c in t.categories],
+            "subtasks": [{"texto": s.texto, "completada": s.completada} for s in t.subtasks],
+        } for t in tasks],
+    }
+    return data
 
 
-@app.post("/api/tasks/import-csv", status_code=201)
-async def import_csv(
+@app.post("/api/backup/import", status_code=201)
+async def backup_import(
     file: UploadFile = File(...),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    import csv, io
     content = await file.read()
-    text = content.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(text))
+    data = json.loads(content)
     count = 0
-    for row in reader:
-        titulo = row.get("Título", row.get("titulo", "")).strip()
-        if not titulo:
-            continue
+    cats_map = {c.nombre: c for c in db.query(CategoryModel).all()}
+    for tdata in data.get("tasks", []):
         task = TaskModel(
-            titulo=titulo,
-            descripcion=row.get("Descripción", row.get("descripcion", "")).strip() or None,
-            prioridad=row.get("Prioridad", row.get("prioridad", "media")).strip() or "media",
-            estado=row.get("Estado", row.get("estado", "pendiente")).strip() or "pendiente",
+            titulo=tdata["titulo"], descripcion=tdata.get("descripcion"),
+            prioridad=tdata.get("prioridad", "media"), estado=tdata.get("estado", "pendiente"),
+            recurrencia=tdata.get("recurrencia"), completada=tdata.get("completada", False),
             user_id=current_user.id,
         )
+        if tdata.get("fecha_vencimiento"):
+            task.fecha_vencimiento = dt.fromisoformat(tdata["fecha_vencimiento"])
+        for cat_name in tdata.get("categories", []):
+            if cat_name in cats_map:
+                task.categories.append(cats_map[cat_name])
+        for sdata in tdata.get("subtasks", []):
+            task.subtasks.append(SubtaskModel(texto=sdata["texto"], completada=sdata.get("completada", False)))
         db.add(task)
         count += 1
     db.commit()
     return {"imported": count}
 
 
-@app.get("/api/tasks/ical")
-def ical_feed(
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    tasks = db.query(TaskModel).filter(
-        TaskModel.user_id == current_user.id,
-        TaskModel.fecha_vencimiento.isnot(None),
-        TaskModel.completada == False,
-    ).all()
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ETM//ES"]
-    for t in tasks:
-        dt = t.fecha_vencimiento.strftime("%Y%m%d")
-        lines += [
-            "BEGIN:VEVENT",
-            f"DTSTART;VALUE=DATE:{dt}",
-            f"DTEND;VALUE=DATE:{dt}",
-            f"SUMMARY:{t.titulo}",
-            f"UID:etm-task-{t.id}@taskmanager",
-            "END:VEVENT",
-        ]
-    lines += ["END:VCALENDAR"]
-    return StreamingResponse(
-        iter(["\r\n".join(lines)]),
-        media_type="text/calendar",
-        headers={"Content-Disposition": "attachment; filename=tareas.ics"}
-    )
+UPLOAD_DIR = "/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @app.get("/api/health")

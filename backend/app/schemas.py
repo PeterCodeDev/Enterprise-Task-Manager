@@ -63,6 +63,7 @@ class TaskCreate(BaseModel):
     category_ids: List[int] = Field(default_factory=list)
     prioridad: str = Field(default="media", pattern="^(alta|media|baja)$")
     estado: str = Field(default="pendiente", pattern="^(pendiente|en_progreso|completada|bloqueada|en_revision)$")
+    recurrencia: Optional[str] = Field(None, pattern="^(diaria|semanal|mensual)$")
     fecha_vencimiento: Optional[datetime] = None
 
 
@@ -72,6 +73,7 @@ class TaskUpdate(BaseModel):
     category_ids: List[int] = Field(default_factory=list)
     prioridad: str = Field(default="media", pattern="^(alta|media|baja)$")
     estado: str = Field(default="pendiente", pattern="^(pendiente|en_progreso|completada|bloqueada|en_revision)$")
+    recurrencia: Optional[str] = Field(None, pattern="^(diaria|semanal|mensual)$")
     fecha_vencimiento: Optional[datetime] = None
 
 
@@ -98,6 +100,19 @@ class AttachmentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CommentCreate(BaseModel):
+    texto: str = Field(..., min_length=1, max_length=2000)
+
+
+class CommentResponse(BaseModel):
+    id: int
+    task_id: int
+    texto: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class TaskResponse(BaseModel):
     id: int
     titulo: str
@@ -105,10 +120,12 @@ class TaskResponse(BaseModel):
     completada: bool
     prioridad: str
     estado: str
+    recurrencia: Optional[str] = None
     fecha_vencimiento: Optional[datetime] = None
     user_id: int
     categories: List[CategoryResponse] = []
     subtasks: List[SubtaskResponse] = []
     attachments: List[AttachmentResponse] = []
+    comments: List[CommentResponse] = []
 
     model_config = {"from_attributes": True}

@@ -11,11 +11,20 @@ export interface Task {
   completada: boolean;
   prioridad: string;
   estado: string;
+  recurrencia: string | null;
   fecha_vencimiento: string | null;
   user_id: number;
   categories: Category[];
   subtasks: Subtask[];
   attachments: Attachment[];
+  comments: Comment[];
+}
+
+export interface Comment {
+  id: number;
+  task_id: number;
+  texto: string;
+  created_at: string;
 }
 
 export interface Subtask {
@@ -39,5 +48,6 @@ export interface TaskCreate {
   category_ids: number[];
   prioridad: string;
   estado: string;
+  recurrencia: string | null;
   fecha_vencimiento: string | null;
 }

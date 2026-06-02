@@ -1314,6 +1314,74 @@ input:focus, select:focus, textarea:focus {
   font-weight: 700;
 }
 
+/* Comments */
+.comment-list {
+  margin-bottom: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.comment-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-text {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.comment-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Shortcuts */
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.shortcut-row kbd {
+  background: var(--border-light);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: monospace;
+  min-width: 28px;
+  text-align: center;
+  color: var(--text);
+}
+
+.shortcut-row span {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
 .modal-title {
   font-size: 1.15rem;
   color: var(--text-heading);

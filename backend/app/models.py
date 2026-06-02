@@ -45,6 +45,7 @@ class TaskModel(Base):
     completada = Column(Boolean, default=False)
     prioridad = Column(String(10), default="media", nullable=False)
     estado = Column(String(20), default="pendiente", nullable=False)
+    recurrencia = Column(String(20), nullable=True)
     fecha_vencimiento = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
@@ -78,3 +79,17 @@ class AttachmentModel(Base):
 
 
 TaskModel.attachments = relationship("AttachmentModel", back_populates="task", cascade="all, delete-orphan", order_by="AttachmentModel.id")
+
+
+class CommentModel(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    texto = Column(String(2000), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    task = relationship("TaskModel", back_populates="comments")
+
+
+TaskModel.comments = relationship("CommentModel", back_populates="task", cascade="all, delete-orphan", order_by="CommentModel.id")

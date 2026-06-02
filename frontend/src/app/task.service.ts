@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Task, TaskCreate, Subtask, Attachment } from './task.model';
+import { Task, TaskCreate, Subtask, Attachment, Comment } from './task.model';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -87,5 +87,27 @@ export class TaskService {
 
   getIcalUrl(): string {
     return 'http://localhost:8000/api/tasks/ical';
+  }
+
+  getComments(taskId: number): Observable<Comment[]> {
+    return this.http.get<Comment[]>(`${this.apiUrl}/${taskId}/comments`);
+  }
+
+  createComment(taskId: number, texto: string): Observable<Comment> {
+    return this.http.post<Comment>(`${this.apiUrl}/${taskId}/comments`, { texto });
+  }
+
+  deleteComment(commentId: number): Observable<void> {
+    return this.http.delete<void>(`http://localhost:8000/api/comments/${commentId}`);
+  }
+
+  exportBackup(): Observable<any> {
+    return this.http.get('http://localhost:8000/api/backup/export');
+  }
+
+  importBackup(file: File): Observable<{ imported: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ imported: number }>('http://localhost:8000/api/backup/import', formData);
   }
 }

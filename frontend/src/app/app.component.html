@@ -67,6 +67,10 @@
           <span class="sidebar-email">{{ userEmail }}</span>
           <button class="btn btn-link btn-sm" (click)="openProfile()">👤 Perfil</button>
           <button class="btn btn-link btn-sm" (click)="showPasswordPanel = true">Cambiar contraseña</button>
+          <button class="btn btn-link btn-sm" (click)="exportBackup()">📦 Exportar backup</button>
+          <input type="file" #backupInput style="display:none" accept=".json" (change)="importBackup(backupInput)" />
+          <button class="btn btn-link btn-sm" (click)="backupInput.click()">📥 Importar backup</button>
+          <button class="btn btn-link btn-sm" (click)="showShortcuts = true">⌨ Atajos</button>
           <button class="btn btn-logout" (click)="logout()">Salir</button>
         </div>
       </aside>
@@ -108,14 +112,14 @@
           <div class="dashboard-lists" *ngIf="stats.tareasHoy.length > 0 || stats.tareasSemana.length > 0">
             <div class="dash-section" *ngIf="stats.tareasHoy.length > 0">
               <h3 class="dash-section-title">📅 Hoy ({{ stats.tareasHoy.length }})</h3>
-              <div class="dash-task" *ngFor="let task of stats.tareasHoy" (click)="openDetail(task)">
+              <div class="dash-task" *ngFor="let task of stats.tareasHoy" (click)="openDetailAndLoadComments(task)">
                 <span class="priority-dot" [style.background]="priorityColor(task.prioridad)"></span>
                 <span class="dash-task-title">{{ task.titulo }}</span>
               </div>
             </div>
             <div class="dash-section" *ngIf="stats.tareasSemana.length > 0">
               <h3 class="dash-section-title">📆 Esta semana ({{ stats.tareasSemana.length }})</h3>
-              <div class="dash-task" *ngFor="let task of stats.tareasSemana" (click)="openDetail(task)">
+              <div class="dash-task" *ngFor="let task of stats.tareasSemana" (click)="openDetailAndLoadComments(task)">
                 <span class="priority-dot" [style.background]="priorityColor(task.prioridad)"></span>
                 <span class="dash-task-title">{{ task.titulo }}</span>
                 <span class="dash-task-date">{{ task.fecha_vencimiento | date:'dd/MM' }}</span>
@@ -205,6 +209,12 @@
                   <option value="bloqueada">🚫 Bloqueada</option>
                   <option value="en_revision">👁 En revisión</option>
                 </select>
+                <select [(ngModel)]="newRecurrencia" name="newRecurrencia" class="priority-select">
+                  <option value="">Sin repetición</option>
+                  <option value="diaria">🔁 Diaria</option>
+                  <option value="semanal">🔁 Semanal</option>
+                  <option value="mensual">🔁 Mensual</option>
+                </select>
                 <button type="submit" class="btn btn-primary btn-sm">Añadir</button>
                 <button type="button" class="btn btn-secondary btn-sm" (click)="showCreateForm = false">Cancelar</button>
               </div>
@@ -257,6 +267,12 @@
                   <option value="bloqueada">🚫 Bloqueada</option>
                   <option value="en_revision">👁 En revisión</option>
                 </select>
+                <select [(ngModel)]="editRecurrencia" name="editRecurrencia" class="priority-select edit-input">
+                  <option value="">Sin repetición</option>
+                  <option value="diaria">🔁 Diaria</option>
+                  <option value="semanal">🔁 Semanal</option>
+                  <option value="mensual">🔁 Mensual</option>
+                </select>
                   <div class="category-picker edit-categories" *ngIf="categories.length > 0">
                     <span *ngFor="let cat of categories" class="category-tag"
                       [style.borderColor]="cat.color"
@@ -273,7 +289,7 @@
               </ng-container>
               <ng-template #taskView>
                 <div class="task-info">
-                  <div class="task-title" (click)="openDetail(task)">
+                  <div class="task-title" (click)="openDetailAndLoadComments(task)">
                     {{ task.titulo }}
                     <span class="estado-badge" [style.background]="estadoColor(task.estado)">
                       {{ estadoLabel(task.estado) }}
@@ -328,7 +344,7 @@
                 <div *ngFor="let task of day.tasks" class="cal-task"
                   [style.borderLeftColor]="priorityColor(task.prioridad)"
                   [class.cal-completed]="task.completada"
-                  (click)="openDetail(task)">
+                  (click)="openDetailAndLoadComments(task)">
                   {{ task.titulo }}
                 </div>
               </div>
@@ -350,7 +366,7 @@
                 <div *ngFor="let task of kanbanTasks(estado)" class="kanban-card"
                   draggable="true"
                   (dragstart)="onKanbanDragStart($event, task)"
-                  (click)="openDetail(task)">
+                  (click)="openDetailAndLoadComments(task)">
                   <div class="kanban-card-priority" [style.background]="priorityColor(task.prioridad)"></div>
                   <div class="kanban-card-title">{{ task.titulo }}</div>
                   <div class="kanban-card-meta">
@@ -446,6 +462,23 @@
               <button class="btn btn-outline btn-sm" (click)="fileInput.click()">+ Adjuntar archivo</button>
             </div>
           </div>
+          <div class="detail-field">
+            <label>Comentarios</label>
+            <div class="comment-list">
+              <div *ngFor="let c of detailTask.comments" class="comment-item">
+                <div class="comment-text">{{ c.texto }}</div>
+                <div class="comment-meta">
+                  <span>{{ c.created_at | date:'dd/MM HH:mm' }}</span>
+                  <button class="subtask-del" (click)="deleteComment(c, detailTask)">✕</button>
+                </div>
+              </div>
+            </div>
+            <div class="comment-add">
+              <input type="text" [(ngModel)]="newCommentText" name="newCommentText" placeholder="Añadir comentario..."
+                class="create-input" style="flex:1" (keyup.enter)="addComment(detailTask)" />
+              <button class="btn btn-primary btn-sm" (click)="addComment(detailTask)">Enviar</button>
+            </div>
+          </div>
         </div>
         <div class="detail-actions">
           <button class="btn btn-edit" (click)="editFromDetail()">Editar</button>
@@ -493,6 +526,22 @@
         <div class="modal-actions">
           <button class="btn btn-primary" (click)="saveProfile()">Guardar</button>
           <button class="btn btn-secondary" (click)="showProfilePanel = false">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shortcuts modal -->
+    <div class="modal-overlay" *ngIf="showShortcuts" (click)="showShortcuts = false">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">Atajos de teclado</h3>
+        <div class="shortcut-list">
+          <div class="shortcut-row"><kbd>N</kbd><span>Nueva tarea</span></div>
+          <div class="shortcut-row"><kbd>/</kbd><span>Buscar</span></div>
+          <div class="shortcut-row"><kbd>Esc</kbd><span>Cerrar / Cancelar</span></div>
+          <div class="shortcut-row"><kbd>?</kbd><span>Mostrar esta ayuda</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" (click)="showShortcuts = false">Cerrar</button>
         </div>
       </div>
     </div>
