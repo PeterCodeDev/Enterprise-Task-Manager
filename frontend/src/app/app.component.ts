@@ -11,7 +11,7 @@ import { Task, Category } from './task.model';
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
-  currentView: 'dashboard' | 'tasks' | 'categories' = 'dashboard';
+  currentView: 'dashboard' | 'tasks' | 'categories' | 'calendar' = 'dashboard';
   tasks: Task[] = [];
   categories: Category[] = [];
   newTitle = '';
@@ -29,6 +29,8 @@ export class AppComponent implements OnInit {
   loading = false;
 
   showCreateForm = false;
+  selectedTaskIds: number[] = [];
+  newSubtaskText = '';
 
   editingTaskId: number | null = null;
   editTitle = '';
@@ -72,7 +74,7 @@ export class AppComponent implements OnInit {
     }
   }
 
-  setView(view: 'dashboard' | 'tasks' | 'categories'): void {
+  setView(view: 'dashboard' | 'tasks' | 'categories' | 'calendar'): void {
     this.currentView = view;
     if (view === 'dashboard' || view === 'tasks') {
       this.loadTasks();
@@ -400,5 +402,150 @@ export class AppComponent implements OnInit {
         }
       },
     });
+  }
+
+  toggleSelect(taskId: number): void {
+    const idx = this.selectedTaskIds.indexOf(taskId);
+    if (idx >= 0) {
+      this.selectedTaskIds.splice(idx, 1);
+    } else {
+      this.selectedTaskIds.push(taskId);
+    }
+  }
+
+  toggleSelectAll(): void {
+    if (this.selectedTaskIds.length === this.tasks.length) {
+      this.selectedTaskIds = [];
+    } else {
+      this.selectedTaskIds = this.tasks.map((t) => t.id);
+    }
+  }
+
+  batchToggle(): void {
+    this.selectedTaskIds.forEach((id) => {
+      this.taskService.toggleTask(id).subscribe({
+        next: (updated) => {
+          const idx = this.tasks.findIndex((t) => t.id === updated.id);
+          if (idx !== -1) this.tasks[idx] = updated;
+        },
+      });
+    });
+    this.selectedTaskIds = [];
+    this.toast.show('Tareas actualizadas', 'success');
+  }
+
+  batchDelete(): void {
+    this.selectedTaskIds.forEach((id) => {
+      this.taskService.deleteTask(id).subscribe({
+        next: () => { this.tasks = this.tasks.filter((t) => t.id !== id); },
+      });
+    });
+    this.selectedTaskIds = [];
+    this.toast.show('Tareas eliminadas', 'info');
+  }
+
+  exportCsv(): void {
+    this.taskService.exportCsv().subscribe((blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tareas.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      this.toast.show('CSV descargado', 'success');
+    });
+  }
+
+  addSubtask(task: Task): void {
+    if (!this.newSubtaskText.trim()) return;
+    this.taskService.createSubtask(task.id, this.newSubtaskText.trim()).subscribe({
+      next: (sub) => {
+        task.subtasks.push(sub);
+        this.newSubtaskText = '';
+      },
+      error: () => this.toast.show('Error al crear subtarea', 'error'),
+    });
+  }
+
+  toggleSubtask(sub: import('./task.model').Subtask, task: Task): void {
+    this.taskService.toggleSubtask(sub.id).subscribe({
+      next: (updated) => {
+        const idx = task.subtasks.findIndex((s) => s.id === updated.id);
+        if (idx !== -1) task.subtasks[idx] = updated;
+      },
+    });
+  }
+
+  deleteSubtask(sub: import('./task.model').Subtask, task: Task): void {
+    this.taskService.deleteSubtask(sub.id).subscribe({
+      next: () => {
+        task.subtasks = task.subtasks.filter((s) => s.id !== sub.id);
+      },
+    });
+  }
+
+  get calendarDate(): Date {
+    return new Date();
+  }
+
+  get calendarDays(): { date: Date; tasks: Task[]; today: boolean; otherMonth: boolean }[] {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPad = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const days: { date: Date; tasks: Task[]; today: boolean; otherMonth: boolean }[] = [];
+
+    for (let i = startPad; i > 0; i--) {
+      const d = new Date(year, month, 1 - i);
+      days.push({ date: d, tasks: this.tasksForDate(d), today: false, otherMonth: true });
+    }
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const date = new Date(year, month, d);
+      const today = date.toDateString() === now.toDateString();
+      days.push({ date, tasks: this.tasksForDate(date), today, otherMonth: false });
+    }
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(year, month + 1, i);
+      days.push({ date: d, tasks: this.tasksForDate(d), today: false, otherMonth: true });
+    }
+    return days;
+  }
+
+  private tasksForDate(date: Date): Task[] {
+    return this.tasks.filter((t) => {
+      if (!t.fecha_vencimiento) return false;
+      const fd = new Date(t.fecha_vencimiento);
+      return fd.getFullYear() === date.getFullYear() &&
+        fd.getMonth() === date.getMonth() &&
+        fd.getDate() === date.getDate();
+    });
+  }
+
+  calendarMonthLabel(): string {
+    const now = new Date();
+    return now.toLocaleDateString('es', { month: 'long', year: 'numeric' });
+  }
+
+  onDragStart(event: DragEvent, task: Task): void {
+    event.dataTransfer?.setData('text/plain', task.id.toString());
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  onDrop(event: DragEvent, targetTask: Task): void {
+    event.preventDefault();
+    const taskId = parseInt(event.dataTransfer?.getData('text/plain') || '', 10);
+    if (!taskId || taskId === targetTask.id) return;
+    const fromIdx = this.tasks.findIndex((t) => t.id === taskId);
+    const toIdx = this.tasks.findIndex((t) => t.id === targetTask.id);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = this.tasks.splice(fromIdx, 1);
+    this.tasks.splice(toIdx, 0, moved);
+    this.toast.show('Tarea reordenada', 'info');
   }
 }

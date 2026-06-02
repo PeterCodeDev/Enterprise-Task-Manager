@@ -5,18 +5,20 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text, case
 
 from app.settings import settings
 from app.logging_config import logger
 from app.database import get_db
-from app.models import UserModel, TaskModel, CategoryModel
+from app.models import UserModel, TaskModel, CategoryModel, SubtaskModel
 from app.schemas import (
     UserCreate, UserResponse, UserLogin, Token,
     TaskCreate, TaskUpdate, TaskResponse,
     CategoryCreate, CategoryResponse,
     PasswordChange,
+    SubtaskCreate, SubtaskResponse,
 )
 from app.security import get_password_hash, verify_password, create_access_token
 from app.auth import get_current_user
@@ -269,6 +271,74 @@ def delete_task(
     if not db_task:
         raise NotFoundException(detail="Tarea no encontrada")
     db.delete(db_task)
+    db.commit()
+
+
+@app.get("/api/tasks/export")
+def export_tasks(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    tasks = db.query(TaskModel).filter(TaskModel.user_id == current_user.id).order_by(TaskModel.id.desc()).all()
+    import csv, io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Título", "Descripción", "Completada", "Prioridad", "Vencimiento", "Categorías"])
+    for t in tasks:
+        cats = ", ".join(c.nombre for c in t.categories)
+        writer.writerow([t.id, t.titulo, t.descripcion or "", "Sí" if t.completada else "No", t.prioridad,
+                         t.fecha_vencimiento.isoformat() if t.fecha_vencimiento else "", cats])
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv",
+                             headers={"Content-Disposition": "attachment; filename=tareas.csv"})
+
+
+@app.post("/api/tasks/{task_id}/subtasks", response_model=SubtaskResponse, status_code=201)
+def create_subtask(
+    task_id: int,
+    subtask: SubtaskCreate,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    task = db.query(TaskModel).filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id).first()
+    if not task:
+        raise NotFoundException(detail="Tarea no encontrada")
+    db_sub = SubtaskModel(task_id=task_id, texto=subtask.texto)
+    db.add(db_sub)
+    db.commit()
+    db.refresh(db_sub)
+    return db_sub
+
+
+@app.patch("/api/subtasks/{subtask_id}/toggle", response_model=SubtaskResponse)
+def toggle_subtask(
+    subtask_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    sub = db.query(SubtaskModel).join(TaskModel).filter(
+        SubtaskModel.id == subtask_id, TaskModel.user_id == current_user.id
+    ).first()
+    if not sub:
+        raise NotFoundException(detail="Subtarea no encontrada")
+    sub.completada = not sub.completada
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+
+@app.delete("/api/subtasks/{subtask_id}", status_code=204)
+def delete_subtask(
+    subtask_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    sub = db.query(SubtaskModel).join(TaskModel).filter(
+        SubtaskModel.id == subtask_id, TaskModel.user_id == current_user.id
+    ).first()
+    if not sub:
+        raise NotFoundException(detail="Subtarea no encontrada")
+    db.delete(sub)
     db.commit()
 
 

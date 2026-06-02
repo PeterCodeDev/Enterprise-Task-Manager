@@ -1002,6 +1002,162 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-muted);
 }
 
+/* Batch bar */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.batch-bar .btn-toggle,
+.batch-bar .btn-danger,
+.batch-bar .btn-secondary {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+/* Checkbox & drag */
+.task-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  user-select: none;
+  flex-shrink: 0;
+  padding: 0 0.2rem;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Subtasks */
+.subtask-list {
+  margin-bottom: 0.75rem;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.subtask-item input[type="checkbox"] {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.subtask-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.subtask-del {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.3rem;
+  margin-left: auto;
+}
+
+.subtask-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Calendar */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.cal-day-header {
+  background: var(--bg-card);
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.cal-day {
+  background: var(--bg-card);
+  min-height: 90px;
+  padding: 0.4rem;
+  cursor: default;
+}
+
+.cal-day.cal-today {
+  background: var(--primary-ring);
+}
+
+.cal-day.cal-other {
+  opacity: 0.4;
+}
+
+.cal-date {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.cal-today .cal-date {
+  color: var(--primary);
+}
+
+.cal-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cal-task {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.35rem;
+  border-left: 3px solid var(--border);
+  background: var(--border-light);
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.cal-task:hover {
+  opacity: 0.7;
+}
+
+.cal-task.cal-completed {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
 .modal-title {
   font-size: 1.15rem;
   color: var(--text-heading);

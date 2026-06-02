@@ -46,3 +46,15 @@ class TaskModel(Base):
 
     user = relationship("UserModel", back_populates="tasks")
     categories = relationship("CategoryModel", secondary=task_category, back_populates="tasks")
+class SubtaskModel(Base):
+    __tablename__ = "subtasks"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    texto = Column(String(500), nullable=False)
+    completada = Column(Boolean, default=False)
+
+    task = relationship("TaskModel", back_populates="subtasks")
+
+
+TaskModel.subtasks = relationship("SubtaskModel", back_populates="task", cascade="all, delete-orphan", order_by="SubtaskModel.id")

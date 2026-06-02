@@ -13,6 +13,14 @@ export interface Task {
   fecha_vencimiento: string | null;
   user_id: number;
   categories: Category[];
+  subtasks: Subtask[];
+}
+
+export interface Subtask {
+  id: number;
+  task_id: number;
+  texto: string;
+  completada: boolean;
 }
 
 export interface TaskCreate {

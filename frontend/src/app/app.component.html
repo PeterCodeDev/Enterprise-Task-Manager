@@ -49,6 +49,9 @@
           <a (click)="setView('tasks')" [class.active]="currentView === 'tasks'">
             <span class="nav-icon">✅</span> Tareas
           </a>
+          <a (click)="setView('calendar')" [class.active]="currentView === 'calendar'">
+            <span class="nav-icon">📅</span> Calendario
+          </a>
           <a (click)="setView('categories')" [class.active]="currentView === 'categories'">
             <span class="nav-icon">🏷️</span> Categorías
           </a>
@@ -171,6 +174,9 @@
             <span class="category-tag" [class.active]="filterCompletada === true"
               (click)="filterCompletada = filterCompletada === true ? null : true; loadTasks()"
               style="border-color:#06d6a0;color:#06d6a0">✓ Completadas</span>
+            <span class="separator">|</span>
+            <span class="category-tag" (click)="toggleSelectAll()">☐ Todos</span>
+            <button class="btn btn-secondary btn-sm" (click)="exportCsv()">📥 CSV</button>
           </div>
 
           <!-- Create form (collapsible) -->
@@ -199,13 +205,28 @@
             </div>
           </div>
 
+          <!-- Batch actions -->
+          <div class="batch-bar" *ngIf="selectedTaskIds.length > 0">
+            <span>{{ selectedTaskIds.length }} seleccionadas</span>
+            <button class="btn btn-toggle btn-sm" (click)="batchToggle()">Completar/Reactivar</button>
+            <button class="btn btn-danger btn-sm" (click)="batchDelete()">Eliminar</button>
+            <button class="btn btn-secondary btn-sm" (click)="selectedTaskIds = []">Cancelar</button>
+          </div>
+
           <!-- Task list -->
           <div *ngIf="loading" class="empty-state">Cargando tareas...</div>
 
           <ul class="task-list" *ngIf="!loading">
             <li *ngFor="let task of tasks" class="task-item"
               [class.completed]="task.completada"
-              [class.overdue]="isOverdue(task)">
+              [class.overdue]="isOverdue(task)"
+              draggable="true"
+              (dragstart)="onDragStart($event, task)"
+              (dragover)="onDragOver($event)"
+              (drop)="onDrop($event, task)">
+              <span class="drag-handle" title="Arrastrar">⠿</span>
+              <input type="checkbox" class="task-checkbox" [checked]="selectedTaskIds.includes(task.id)"
+                (click)="$event.stopPropagation(); toggleSelect(task.id)" />
               <ng-container *ngIf="editingTaskId === task.id; else taskView">
                 <div class="edit-form">
                   <input type="text" [(ngModel)]="editTitle" name="editTitle" placeholder="Título" class="edit-input" />
@@ -269,6 +290,27 @@
           </button>
         </ng-container>
 
+        <!-- Calendar view -->
+        <ng-container *ngIf="currentView === 'calendar'">
+          <h2 class="view-title">{{ calendarMonthLabel() }}</h2>
+          <div class="calendar-grid">
+            <div class="cal-day-header" *ngFor="let d of ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']">{{ d }}</div>
+            <div *ngFor="let day of calendarDays" class="cal-day"
+              [class.cal-today]="day.today"
+              [class.cal-other]="day.otherMonth">
+              <span class="cal-date">{{ day.date.getDate() }}</span>
+              <div class="cal-tasks">
+                <div *ngFor="let task of day.tasks" class="cal-task"
+                  [style.borderLeftColor]="priorityColor(task.prioridad)"
+                  [class.cal-completed]="task.completada"
+                  (click)="openDetail(task)">
+                  {{ task.titulo }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
         <!-- Categories view -->
         <ng-container *ngIf="currentView === 'categories'">
           <h2 class="view-title">Categorías</h2>
@@ -321,6 +363,21 @@
               <span *ngFor="let cat of detailTask.categories" class="category-badge" [style.background]="cat.color">
                 {{ cat.nombre }}
               </span>
+            </div>
+          </div>
+          <div class="detail-field">
+            <label>Subtareas</label>
+            <div class="subtask-list">
+              <div *ngFor="let sub of detailTask.subtasks" class="subtask-item">
+                <input type="checkbox" [checked]="sub.completada" (change)="toggleSubtask(sub, detailTask)" />
+                <span [class.subtask-done]="sub.completada">{{ sub.texto }}</span>
+                <button class="subtask-del" (click)="deleteSubtask(sub, detailTask)">✕</button>
+              </div>
+            </div>
+            <div class="subtask-add">
+              <input type="text" [(ngModel)]="newSubtaskText" name="newSubtaskText" placeholder="Añadir paso..."
+                class="create-input" style="flex:1" (keyup.enter)="addSubtask(detailTask)" />
+              <button class="btn btn-primary btn-sm" (click)="addSubtask(detailTask)">+</button>
             </div>
           </div>
         </div>

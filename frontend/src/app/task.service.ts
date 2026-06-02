@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Task, TaskCreate } from './task.model';
+import { Task, TaskCreate, Subtask } from './task.model';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -47,5 +47,21 @@ export class TaskService {
 
   deleteTask(taskId: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${taskId}`);
+  }
+
+  exportCsv(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/export`, { responseType: 'blob' });
+  }
+
+  createSubtask(taskId: number, texto: string): Observable<Subtask> {
+    return this.http.post<Subtask>(`${this.apiUrl}/${taskId}/subtasks`, { texto });
+  }
+
+  toggleSubtask(subtaskId: number): Observable<Subtask> {
+    return this.http.patch<Subtask>(`http://localhost:8000/api/subtasks/${subtaskId}/toggle`, {});
+  }
+
+  deleteSubtask(subtaskId: number): Observable<void> {
+    return this.http.delete<void>(`http://localhost:8000/api/subtasks/${subtaskId}`);
   }
 }

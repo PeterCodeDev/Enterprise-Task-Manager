@@ -64,6 +64,19 @@ class TaskUpdate(BaseModel):
     fecha_vencimiento: Optional[datetime] = None
 
 
+class SubtaskCreate(BaseModel):
+    texto: str = Field(..., min_length=1, max_length=500)
+
+
+class SubtaskResponse(BaseModel):
+    id: int
+    task_id: int
+    texto: str
+    completada: bool
+
+    model_config = {"from_attributes": True}
+
+
 class TaskResponse(BaseModel):
     id: int
     titulo: str
@@ -73,5 +86,6 @@ class TaskResponse(BaseModel):
     fecha_vencimiento: Optional[datetime] = None
     user_id: int
     categories: List[CategoryResponse] = []
+    subtasks: List[SubtaskResponse] = []
 
     model_config = {"from_attributes": True}
