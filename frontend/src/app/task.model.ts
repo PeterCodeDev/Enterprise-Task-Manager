@@ -12,12 +12,22 @@ export interface Task {
   prioridad: string;
   estado: string;
   recurrencia: string | null;
+  tiempo_acumulado: number;
   fecha_vencimiento: string | null;
   user_id: number;
   categories: Category[];
   subtasks: Subtask[];
   attachments: Attachment[];
   comments: Comment[];
+  activity_logs: ActivityLog[];
+}
+
+export interface ActivityLog {
+  id: number;
+  task_id: number;
+  accion: string;
+  detalle: string | null;
+  created_at: string;
 }
 
 export interface Comment {

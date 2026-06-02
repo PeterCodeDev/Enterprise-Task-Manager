@@ -46,6 +46,7 @@ class TaskModel(Base):
     prioridad = Column(String(10), default="media", nullable=False)
     estado = Column(String(20), default="pendiente", nullable=False)
     recurrencia = Column(String(20), nullable=True)
+    tiempo_acumulado = Column(Integer, default=0, nullable=False, server_default="0")
     fecha_vencimiento = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
@@ -93,3 +94,33 @@ class CommentModel(Base):
 
 
 TaskModel.comments = relationship("CommentModel", back_populates="task", cascade="all, delete-orphan", order_by="CommentModel.id")
+
+
+class ActivityLogModel(Base):
+    __tablename__ = "activity_log"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    accion = Column(String(50), nullable=False)
+    detalle = Column(String(500), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    task = relationship("TaskModel", back_populates="activity_logs")
+
+
+TaskModel.activity_logs = relationship("ActivityLogModel", back_populates="task", cascade="all, delete-orphan", order_by="ActivityLogModel.created_at.desc()")
+
+
+class ApiTokenModel(Base):
+    __tablename__ = "api_tokens"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    token_hash = Column(String(255), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    user = relationship("UserModel", back_populates="api_tokens")
+
+
+UserModel.api_tokens = relationship("ApiTokenModel", back_populates="user", cascade="all, delete-orphan")

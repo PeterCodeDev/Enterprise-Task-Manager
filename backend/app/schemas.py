@@ -113,6 +113,28 @@ class CommentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ActivityLogResponse(BaseModel):
+    id: int
+    task_id: int
+    accion: str
+    detalle: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ApiTokenResponse(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ApiTokenCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
 class TaskResponse(BaseModel):
     id: int
     titulo: str
@@ -121,11 +143,13 @@ class TaskResponse(BaseModel):
     prioridad: str
     estado: str
     recurrencia: Optional[str] = None
+    tiempo_acumulado: int = 0
     fecha_vencimiento: Optional[datetime] = None
     user_id: int
     categories: List[CategoryResponse] = []
     subtasks: List[SubtaskResponse] = []
     attachments: List[AttachmentResponse] = []
     comments: List[CommentResponse] = []
+    activity_logs: List[ActivityLogResponse] = []
 
     model_config = {"from_attributes": True}

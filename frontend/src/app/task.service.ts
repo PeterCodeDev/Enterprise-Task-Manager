@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Task, TaskCreate, Subtask, Attachment, Comment } from './task.model';
+import { Task, TaskCreate, Subtask, Attachment, Comment, ActivityLog } from './task.model';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -109,5 +109,29 @@ export class TaskService {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<{ imported: number }>('http://localhost:8000/api/backup/import', formData);
+  }
+
+  startTimer(taskId: number): Observable<Task> {
+    return this.http.patch<Task>(`${this.apiUrl}/${taskId}/timer?action=start`, {});
+  }
+
+  stopTimer(taskId: number): Observable<Task> {
+    return this.http.patch<Task>(`${this.apiUrl}/${taskId}/timer?action=stop`, {});
+  }
+
+  getActivity(taskId: number): Observable<ActivityLog[]> {
+    return this.http.get<ActivityLog[]>(`${this.apiUrl}/${taskId}/activity`);
+  }
+
+  getTokens(): Observable<any[]> {
+    return this.http.get<any[]>('http://localhost:8000/api/tokens');
+  }
+
+  createToken(name: string): Observable<any> {
+    return this.http.post<any>('http://localhost:8000/api/tokens', { name });
+  }
+
+  deleteToken(tokenId: number): Observable<void> {
+    return this.http.delete<void>(`http://localhost:8000/api/tokens/${tokenId}`);
   }
 }

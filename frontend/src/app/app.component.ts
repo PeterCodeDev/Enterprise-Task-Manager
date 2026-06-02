@@ -47,6 +47,15 @@ export class AppComponent implements OnInit {
 
   newCommentText = '';
   showShortcuts = false;
+  showTokensPanel = false;
+  tokens: any[] = [];
+  newTokenName = '';
+  newTokenResult = '';
+
+  savedFilters: { name: string; filters: any }[] = [];
+  filterNameInput = '';
+
+  reminderMinutes: number | null = null;
 
   showCategoryPanel = false;
   newCategoryName = '';
@@ -83,10 +92,13 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.theme.init();
+    const saved = localStorage.getItem('taskmanager_saved_filters');
+    if (saved) this.savedFilters = JSON.parse(saved);
     if (this.authService.hasToken()) {
       this.loadCategories();
       this.loadTasks();
     }
+    setInterval(() => this.checkReminders(), 30000);
   }
 
   setView(view: 'dashboard' | 'tasks' | 'categories' | 'calendar' | 'kanban'): void {
@@ -730,6 +742,7 @@ export class AppComponent implements OnInit {
     this.taskService.getComments(task.id).subscribe({
       next: (comments) => { task.comments = comments; },
     });
+    this.loadActivity(task);
   }
 
   addComment(task: Task): void {
@@ -807,5 +820,114 @@ export class AppComponent implements OnInit {
     if (today.length > 0) {
       new Notification(`${today.length} tareas para hoy`, { body: today.map((t) => t.titulo).join(', '), icon: '/assets/icon-192.svg' });
     }
+  }
+
+  formatTime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  }
+
+  startTimer(task: Task): void {
+    this.taskService.startTimer(task.id).subscribe();
+  }
+
+  stopTimer(task: Task): void {
+    this.taskService.stopTimer(task.id).subscribe({
+      next: (updated) => {
+        task.tiempo_acumulado = updated.tiempo_acumulado;
+        this.toast.show('Temporizador: +1 min', 'info');
+      },
+    });
+  }
+
+  loadActivity(task: Task): void {
+    this.taskService.getActivity(task.id).subscribe({
+      next: (logs) => { task.activity_logs = logs; },
+    });
+  }
+
+  saveFilter(): void {
+    if (!this.filterNameInput.trim()) return;
+    this.savedFilters.push({
+      name: this.filterNameInput.trim(),
+      filters: {
+        filterCategoryId: this.filterCategoryId,
+        filterPriority: this.filterPriority,
+        filterCompletada: this.filterCompletada,
+        showVencidas: this.showVencidas,
+        searchTerm: this.searchTerm,
+      },
+    });
+    localStorage.setItem('taskmanager_saved_filters', JSON.stringify(this.savedFilters));
+    this.filterNameInput = '';
+    this.toast.show('Filtro guardado', 'success');
+  }
+
+  applyFilter(f: { name: string; filters: any }): void {
+    this.filterCategoryId = f.filters.filterCategoryId;
+    this.filterPriority = f.filters.filterPriority;
+    this.filterCompletada = f.filters.filterCompletada;
+    this.showVencidas = f.filters.showVencidas;
+    this.searchTerm = f.filters.searchTerm || '';
+    this.loadTasks();
+  }
+
+  deleteFilter(index: number): void {
+    this.savedFilters.splice(index, 1);
+    localStorage.setItem('taskmanager_saved_filters', JSON.stringify(this.savedFilters));
+  }
+
+  openTokens(): void {
+    this.showTokensPanel = true;
+    this.newTokenResult = '';
+    this.taskService.getTokens().subscribe({
+      next: (data) => { this.tokens = data; },
+    });
+  }
+
+  createApiToken(): void {
+    if (!this.newTokenName.trim()) return;
+    this.taskService.createToken(this.newTokenName.trim()).subscribe({
+      next: (data) => {
+        this.newTokenResult = data.token;
+        this.newTokenName = '';
+        this.tokens.unshift(data);
+        this.toast.show('Token creado', 'success');
+      },
+      error: () => this.toast.show('Error al crear token', 'error'),
+    });
+  }
+
+  deleteApiToken(tokenId: number): void {
+    this.taskService.deleteToken(tokenId).subscribe({
+      next: () => {
+        this.tokens = this.tokens.filter((t: any) => t.id !== tokenId);
+        this.toast.show('Token eliminado', 'info');
+      },
+    });
+  }
+
+  setReminder(task: Task, minutes: number): void {
+    const reminders = JSON.parse(localStorage.getItem('taskmanager_reminders') || '{}');
+    reminders[task.id] = { minutes, until: new Date(task.fecha_vencimiento!).getTime() - minutes * 60000, taskTitle: task.titulo };
+    localStorage.setItem('taskmanager_reminders', JSON.stringify(reminders));
+    this.reminderMinutes = minutes;
+    this.toast.show(`Recordatorio: ${minutes} min antes`, 'info');
+  }
+
+  checkReminders(): void {
+    const reminders = JSON.parse(localStorage.getItem('taskmanager_reminders') || '{}');
+    const now = Date.now();
+    let changed = false;
+    for (const key of Object.keys(reminders)) {
+      const r = reminders[key];
+      if (r.until <= now) {
+        this.toast.show(`⏰ Recordatorio: "${r.taskTitle}"`, 'info');
+        delete reminders[key];
+        changed = true;
+      }
+    }
+    if (changed) localStorage.setItem('taskmanager_reminders', JSON.stringify(reminders));
   }
 }

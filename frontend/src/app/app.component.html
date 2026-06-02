@@ -71,6 +71,7 @@
           <input type="file" #backupInput style="display:none" accept=".json" (change)="importBackup(backupInput)" />
           <button class="btn btn-link btn-sm" (click)="backupInput.click()">📥 Importar backup</button>
           <button class="btn btn-link btn-sm" (click)="showShortcuts = true">⌨ Atajos</button>
+          <button class="btn btn-link btn-sm" (click)="openTokens()">🔑 API Tokens</button>
           <button class="btn btn-logout" (click)="logout()">Salir</button>
         </div>
       </aside>
@@ -189,6 +190,13 @@
             <button class="btn btn-secondary btn-sm" (click)="csvInput.click()">📥 Importar</button>
             <button class="btn btn-secondary btn-sm" (click)="exportCsv()">📤 CSV</button>
             <button class="btn btn-secondary btn-sm" (click)="copyIcalUrl()">📅 iCal</button>
+            <span class="separator">|</span>
+            <select class="sort-select" (change)="applyFilter(savedFilters[$any($event).target.selectedIndex - 1])" style="max-width:140px">
+              <option value="">💾 Filtros guardados</option>
+              <option *ngFor="let f of savedFilters; let i = index" [value]="i">{{ f.name }}</option>
+            </select>
+            <input type="text" [(ngModel)]="filterNameInput" name="filterNameInput" placeholder="Nombre filtro" class="sort-select" style="max-width:110px" (keyup.enter)="saveFilter()" />
+            <button class="btn btn-icon" (click)="saveFilter()" title="Guardar filtro actual">💾</button>
           </div>
 
           <!-- Create form (collapsible) -->
@@ -479,11 +487,36 @@
               <button class="btn btn-primary btn-sm" (click)="addComment(detailTask)">Enviar</button>
             </div>
           </div>
+          <div class="detail-field">
+            <label>Actividad</label>
+            <div class="activity-list">
+              <div *ngFor="let log of detailTask.activity_logs" class="activity-item">
+                <span>{{ log.accion === 'creada' ? '📝' : log.accion.startsWith('timer') ? '⏱' : '🔄' }}</span>
+                <span style="flex:1;font-size:0.85rem">{{ log.detalle || log.accion }}</span>
+                <span style="font-size:0.7rem;color:var(--text-muted)">{{ log.created_at | date:'HH:mm' }}</span>
+              </div>
+              <div *ngIf="!detailTask.activity_logs?.length">
+                <button class="btn btn-link btn-sm" (click)="loadActivity(detailTask)">Cargar actividad</button>
+              </div>
+            </div>
+          </div>
+          <div class="detail-field" *ngIf="detailTask.fecha_vencimiento && !detailTask.completada">
+            <label>Recordatorio</label>
+            <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" (click)="setReminder(detailTask, 5)">5 min antes</button>
+              <button class="btn btn-outline btn-sm" (click)="setReminder(detailTask, 15)">15 min</button>
+              <button class="btn btn-outline btn-sm" (click)="setReminder(detailTask, 60)">1 h</button>
+              <button class="btn btn-outline btn-sm" (click)="setReminder(detailTask, 1440)">1 día</button>
+            </div>
+          </div>
         </div>
         <div class="detail-actions">
           <button class="btn btn-edit" (click)="editFromDetail()">Editar</button>
           <button class="btn btn-toggle" (click)="toggleTask(detailTask)">{{ detailTask.completada ? 'Reactivar' : 'Completar' }}</button>
-          <button class="btn btn-danger" (click)="deleteFromDetail()">Eliminar</button>
+          <button class="btn btn-outline btn-sm" (click)="startTimer(detailTask)">▶</button>
+          <button class="btn btn-toggle btn-sm" (click)="stopTimer(detailTask)">⏹ +1m</button>
+          <span style="font-size:0.85rem;color:var(--text-muted)">{{ formatTime(detailTask.tiempo_acumulado) }}</span>
+          <button class="btn btn-danger" (click)="deleteFromDetail()" style="margin-left:auto">Eliminar</button>
         </div>
       </div>
     </div>
@@ -526,6 +559,30 @@
         <div class="modal-actions">
           <button class="btn btn-primary" (click)="saveProfile()">Guardar</button>
           <button class="btn btn-secondary" (click)="showProfilePanel = false">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tokens modal -->
+    <div class="modal-overlay" *ngIf="showTokensPanel" (click)="showTokensPanel = false">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">API Tokens</h3>
+        <div class="create-row" style="margin-bottom:1rem">
+          <input type="text" [(ngModel)]="newTokenName" name="newTokenName" placeholder="Nombre del token" class="create-input" style="flex:1" />
+          <button class="btn btn-primary btn-sm" (click)="createApiToken()">Generar</button>
+        </div>
+        <div *ngIf="newTokenResult" class="alert alert-success" style="word-break:break-all;margin-bottom:1rem">
+          Nuevo token: <strong>{{ newTokenResult }}</strong>
+          <br><small>Cópialo ahora. No se mostrará de nuevo.</small>
+        </div>
+        <div *ngFor="let t of tokens" class="cat-item">
+          <span class="cat-name">{{ t.name }}</span>
+          <span style="font-size:0.7rem;color:var(--text-muted)">{{ t.created_at | date:'dd/MM/yyyy' }}</span>
+          <button class="btn btn-sm btn-outline-danger" (click)="deleteApiToken(t.id)">Eliminar</button>
+        </div>
+        <div *ngIf="tokens.length === 0 && !newTokenResult" class="text-muted" style="text-align:center;padding:1rem">No hay tokens</div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" (click)="showTokensPanel = false">Cerrar</button>
         </div>
       </div>
     </div>
