@@ -11,6 +11,7 @@ import { Task, Category } from './task.model';
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
+  currentView: 'dashboard' | 'tasks' | 'categories' = 'dashboard';
   tasks: Task[] = [];
   categories: Category[] = [];
   newTitle = '';
@@ -25,6 +26,8 @@ export class AppComponent implements OnInit {
   sortBy = 'id';
   sortOrder = 'desc';
   loading = false;
+
+  showCreateForm = false;
 
   editingTaskId: number | null = null;
   editTitle = '';
@@ -64,8 +67,24 @@ export class AppComponent implements OnInit {
     }
   }
 
+  setView(view: 'dashboard' | 'tasks' | 'categories'): void {
+    this.currentView = view;
+    if (view === 'dashboard' || view === 'tasks') {
+      this.loadTasks();
+    }
+  }
+
   get userEmail(): string | null {
     return this.authService.getEmail();
+  }
+
+  get stats() {
+    const total = this.tasks.length;
+    const completadas = this.tasks.filter((t) => t.completada).length;
+    const pendientes = total - completadas;
+    const vencidas = this.tasks.filter((t) => !t.completada && this.isOverdue(t)).length;
+    const porcentaje = total > 0 ? Math.round((completadas / total) * 100) : 0;
+    return { total, completadas, pendientes, vencidas, porcentaje };
   }
 
   isOverdue(task: Task): boolean {
@@ -182,6 +201,7 @@ export class AppComponent implements OnInit {
           this.newDueDate = '';
           this.newPriority = 'media';
           this.selectedCategoryIds = [];
+          this.showCreateForm = false;
           this.toast.show('Tarea creada', 'success');
         },
         error: () => this.toast.show('Error al crear tarea', 'error'),
