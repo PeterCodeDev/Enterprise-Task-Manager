@@ -427,6 +427,39 @@ h2 {
   background: #f0f0f0;
 }
 
+.priority-badge {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 8px;
+  color: #333;
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+.priority-select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: white;
+  cursor: pointer;
+  max-width: 130px;
+}
+
+.priority-select:focus {
+  outline: none;
+  border-color: #4361ee;
+}
+
+.separator {
+  color: #ccc;
+  user-select: none;
+}
+
+.priority-filter.active {
+  font-weight: 600;
+}
+
 .overdue-filter.active {
   background: #ef476f !important;
   color: #fff !important;

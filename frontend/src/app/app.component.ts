@@ -15,8 +15,10 @@ export class AppComponent implements OnInit {
   newTitle = '';
   newDescription = '';
   newDueDate = '';
+  newPriority = 'media';
   selectedCategoryIds: number[] = [];
   filterCategoryId: number | null = null;
+  filterPriority: string | null = null;
   showVencidas = false;
   searchTerm = '';
   sortBy = 'id';
@@ -27,6 +29,7 @@ export class AppComponent implements OnInit {
   editTitle = '';
   editDescription = '';
   editDueDate = '';
+  editPriority = 'media';
   editCategoryIds: number[] = [];
   deleteConfirmTask: Task | null = null;
 
@@ -64,6 +67,18 @@ export class AppComponent implements OnInit {
   isOverdue(task: Task): boolean {
     if (!task.fecha_vencimiento || task.completada) return false;
     return new Date(task.fecha_vencimiento) < new Date();
+  }
+
+  priorityColor(prioridad: string): string {
+    if (prioridad === 'alta') return '#ef476f';
+    if (prioridad === 'media') return '#ffd166';
+    return '#06d6a0';
+  }
+
+  priorityLabel(prioridad: string): string {
+    if (prioridad === 'alta') return 'Alta';
+    if (prioridad === 'media') return 'Media';
+    return 'Baja';
   }
 
   login(): void {
@@ -124,7 +139,7 @@ export class AppComponent implements OnInit {
   loadTasks(): void {
     this.loading = true;
     const search = this.searchTerm.trim() || undefined;
-    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder).subscribe({
+    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder, this.filterPriority ?? undefined).subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;
@@ -152,6 +167,7 @@ export class AppComponent implements OnInit {
         titulo: this.newTitle.trim(),
         descripcion: this.newDescription.trim() || null,
         category_ids: this.selectedCategoryIds,
+        prioridad: this.newPriority,
         fecha_vencimiento: this.newDueDate ? new Date(this.newDueDate).toISOString() : null,
       })
       .subscribe({
@@ -160,6 +176,7 @@ export class AppComponent implements OnInit {
           this.newTitle = '';
           this.newDescription = '';
           this.newDueDate = '';
+          this.newPriority = 'media';
           this.selectedCategoryIds = [];
           this.toast.show('Tarea creada', 'success');
         },
@@ -171,6 +188,7 @@ export class AppComponent implements OnInit {
     this.editingTaskId = task.id;
     this.editTitle = task.titulo;
     this.editDescription = task.descripcion || '';
+    this.editPriority = task.prioridad;
     this.editDueDate = task.fecha_vencimiento
       ? new Date(task.fecha_vencimiento).toISOString().slice(0, 10)
       : '';
@@ -201,6 +219,7 @@ export class AppComponent implements OnInit {
         titulo: this.editTitle.trim(),
         descripcion: this.editDescription.trim() || null,
         category_ids: this.editCategoryIds,
+        prioridad: this.editPriority,
         fecha_vencimiento: this.editDueDate ? new Date(this.editDueDate).toISOString() : null,
       })
       .subscribe({

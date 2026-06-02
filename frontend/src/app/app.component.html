@@ -56,6 +56,7 @@
       <select [(ngModel)]="sortBy" (change)="loadTasks()" class="sort-select">
         <option value="id">Más recientes</option>
         <option value="fecha_vencimiento">Fecha de vencimiento</option>
+        <option value="prioridad">Prioridad</option>
         <option value="titulo">Alfabéticamente</option>
       </select>
       <button class="btn btn-icon" (click)="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'; loadTasks()" [title]="sortOrder === 'asc' ? 'Ascendente' : 'Descendente'">
@@ -67,17 +68,33 @@
     <div class="filter-bar">
       <div class="category-filter" *ngIf="categories.length > 0">
         <span class="filter-label">Filtrar:</span>
-        <span class="category-tag" [class.active]="filterCategoryId === null && !showVencidas"
-          (click)="filterCategoryId = null; showVencidas = false; loadTasks()">Todas</span>
+        <span class="category-tag" [class.active]="filterCategoryId === null && !showVencidas && filterPriority === null"
+          (click)="filterCategoryId = null; showVencidas = false; filterPriority = null; loadTasks()">Todas</span>
         <span *ngFor="let cat of categories" class="category-tag"
           [style.borderColor]="cat.color"
           [style.color]="filterCategoryId === cat.id ? '#fff' : cat.color"
           [style.background]="filterCategoryId === cat.id ? cat.color : 'transparent'"
           [class.active]="filterCategoryId === cat.id"
-          (click)="filterCategoryId = cat.id; showVencidas = false; loadTasks()">{{ cat.nombre }}</span>
+          (click)="filterCategoryId = cat.id; showVencidas = false; filterPriority = null; loadTasks()">{{ cat.nombre }}</span>
         <span class="category-tag overdue-filter" [class.active]="showVencidas"
-          (click)="filterCategoryId = null; showVencidas = !showVencidas; loadTasks()"
+          (click)="filterCategoryId = null; showVencidas = !showVencidas; filterPriority = null; loadTasks()"
           style="border-color:#ef476f;color:#ef476f">⚠ Vencidas</span>
+        <span class="separator">|</span>
+        <span class="category-tag priority-filter" [style.borderColor]="'#ef476f'"
+          [style.color]="filterPriority === 'alta' ? '#fff' : '#ef476f'"
+          [style.background]="filterPriority === 'alta' ? '#ef476f' : 'transparent'"
+          [class.active]="filterPriority === 'alta'"
+          (click)="filterPriority = filterPriority === 'alta' ? null : 'alta'; filterCategoryId = null; showVencidas = false; loadTasks()">Alta</span>
+        <span class="category-tag priority-filter" [style.borderColor]="'#ffd166'"
+          [style.color]="filterPriority === 'media' ? '#333' : '#b8860b'"
+          [style.background]="filterPriority === 'media' ? '#ffd166' : 'transparent'"
+          [class.active]="filterPriority === 'media'"
+          (click)="filterPriority = filterPriority === 'media' ? null : 'media'; filterCategoryId = null; showVencidas = false; loadTasks()">Media</span>
+        <span class="category-tag priority-filter" [style.borderColor]="'#06d6a0'"
+          [style.color]="filterPriority === 'baja' ? '#fff' : '#06d6a0'"
+          [style.background]="filterPriority === 'baja' ? '#06d6a0' : 'transparent'"
+          [class.active]="filterPriority === 'baja'"
+          (click)="filterPriority = filterPriority === 'baja' ? null : 'baja'; filterCategoryId = null; showVencidas = false; loadTasks()">Baja</span>
       </div>
     </div>
 
@@ -86,6 +103,11 @@
       <input type="text" [(ngModel)]="newTitle" name="titulo" placeholder="Título de la tarea" required />
       <input type="text" [(ngModel)]="newDescription" name="descripcion" placeholder="Descripción (opcional)" />
       <input type="date" [(ngModel)]="newDueDate" name="dueDate" class="date-input" />
+      <select [(ngModel)]="newPriority" name="newPriority" class="priority-select">
+        <option value="alta">🔴 Alta</option>
+        <option value="media">🟡 Media</option>
+        <option value="baja">🟢 Baja</option>
+      </select>
       <button type="submit" class="btn btn-primary">Añadir</button>
     </form>
 
@@ -134,6 +156,11 @@
             <input type="text" [(ngModel)]="editTitle" name="editTitle" placeholder="Título" class="edit-input" />
             <input type="text" [(ngModel)]="editDescription" name="editDescription" placeholder="Descripción (opcional)" class="edit-input" />
             <input type="date" [(ngModel)]="editDueDate" name="editDueDate" class="date-input edit-input" />
+            <select [(ngModel)]="editPriority" name="editPriority" class="priority-select edit-input">
+              <option value="alta">🔴 Alta</option>
+              <option value="media">🟡 Media</option>
+              <option value="baja">🟢 Baja</option>
+            </select>
             <div class="category-picker edit-categories" *ngIf="categories.length > 0">
               <span *ngFor="let cat of categories" class="category-tag"
                 [style.borderColor]="cat.color"
@@ -153,6 +180,9 @@
           <div class="task-info">
             <div class="task-title">
               {{ task.titulo }}
+              <span class="priority-badge" [style.background]="priorityColor(task.prioridad)">
+                {{ priorityLabel(task.prioridad) }}
+              </span>
               <span class="due-badge" *ngIf="task.fecha_vencimiento && !task.completada"
                 [class.overdue-badge]="isOverdue(task)">
                 {{ isOverdue(task) ? 'Vencida: ' : 'Vence: ' }}

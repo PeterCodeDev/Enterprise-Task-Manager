@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, case
 
 from app.settings import settings
 from app.logging_config import logger
@@ -123,6 +123,7 @@ def list_tasks(
     completada: Optional[bool] = Query(None),
     category_id: Optional[int] = Query(None),
     vencidas: Optional[bool] = Query(None),
+    prioridad: Optional[str] = Query(None, description="Filtrar: alta, media, baja"),
     search: Optional[str] = Query(None, description="Buscar por título o descripción"),
     sort_by: Optional[str] = Query("id", description="Campo: id, titulo, fecha_vencimiento"),
     sort_order: Optional[str] = Query("desc", description="Orden: asc, desc"),
@@ -141,6 +142,8 @@ def list_tasks(
             TaskModel.fecha_vencimiento < dt.utcnow(),
             TaskModel.completada == False,
         )
+    if prioridad:
+        query = query.filter(TaskModel.prioridad == prioridad)
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -150,6 +153,12 @@ def list_tasks(
         "id": TaskModel.id,
         "titulo": TaskModel.titulo,
         "fecha_vencimiento": TaskModel.fecha_vencimiento,
+        "prioridad": case(
+            (TaskModel.prioridad == "alta", 1),
+            (TaskModel.prioridad == "media", 2),
+            (TaskModel.prioridad == "baja", 3),
+            else_=4,
+        ),
     }.get(sort_by, TaskModel.id)
     if sort_order == "asc":
         query = query.order_by(sort_column.asc())
@@ -169,6 +178,7 @@ def create_task(
         titulo=task.titulo,
         descripcion=task.descripcion,
         completada=False,
+        prioridad=task.prioridad,
         fecha_vencimiento=task.fecha_vencimiento,
         user_id=current_user.id,
     )
@@ -208,6 +218,7 @@ def update_task(
         raise NotFoundException(detail="Tarea no encontrada")
     db_task.titulo = task.titulo
     db_task.descripcion = task.descripcion
+    db_task.prioridad = task.prioridad
     db_task.fecha_vencimiento = task.fecha_vencimiento
     db_task.categories = _get_categories(db, task.category_ids)
     db.commit()

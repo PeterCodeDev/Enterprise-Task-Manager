@@ -39,18 +39,19 @@ def run():
         # Create demo tasks
         if db.query(TaskModel).filter(TaskModel.user_id == user.id).count() == 0:
             tasks_data = [
-                ("Comprar víveres", "Leche, pan, huevos", ["Personal"], None),
+                ("Comprar víveres", "Leche, pan, huevos", ["Personal"], None, "baja"),
                 ("Preparar presentación Q3", "PowerPoint para el cliente", ["Trabajo", "Urgente"],
-                 dt(2026, 6, 10)),
-                ("Estudiar FastAPI", "Capítulo 5: Autenticación", ["Estudio"], None),
+                 dt(2026, 6, 10), "alta"),
+                ("Estudiar FastAPI", "Capítulo 5: Autenticación", ["Estudio"], None, "media"),
                 ("Revisar PR #42", "Refactor del módulo auth", ["Trabajo"],
-                 dt(2026, 6, 2)),
+                 dt(2026, 6, 2), "alta"),
             ]
-            for titulo, desc, cats, fecha in tasks_data:
+            for titulo, desc, cats, fecha, prio in tasks_data:
                 task = TaskModel(
                     titulo=titulo,
                     descripcion=desc,
                     user_id=user.id,
+                    prioridad=prio,
                     fecha_vencimiento=fecha,
                 )
                 task.categories = [categories[c] for c in cats]
