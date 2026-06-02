@@ -20,6 +20,13 @@ export class AppComponent implements OnInit {
   showVencidas = false;
   loading = false;
 
+  editingTaskId: number | null = null;
+  editTitle = '';
+  editDescription = '';
+  editDueDate = '';
+  editCategoryIds: number[] = [];
+  deleteConfirmTask: Task | null = null;
+
   loginEmail = '';
   loginPassword = '';
   registerEmail = '';
@@ -151,6 +158,55 @@ export class AppComponent implements OnInit {
       });
   }
 
+  startEdit(task: Task): void {
+    this.editingTaskId = task.id;
+    this.editTitle = task.titulo;
+    this.editDescription = task.descripcion || '';
+    this.editDueDate = task.fecha_vencimiento
+      ? new Date(task.fecha_vencimiento).toISOString().slice(0, 10)
+      : '';
+    this.editCategoryIds = task.categories.map((c) => c.id);
+  }
+
+  cancelEdit(): void {
+    this.editingTaskId = null;
+    this.editTitle = '';
+    this.editDescription = '';
+    this.editDueDate = '';
+    this.editCategoryIds = [];
+  }
+
+  toggleEditCategory(catId: number): void {
+    const idx = this.editCategoryIds.indexOf(catId);
+    if (idx >= 0) {
+      this.editCategoryIds.splice(idx, 1);
+    } else {
+      this.editCategoryIds.push(catId);
+    }
+  }
+
+  saveEdit(): void {
+    if (!this.editTitle.trim() || this.editingTaskId === null) return;
+    this.taskService
+      .updateTask(this.editingTaskId, {
+        titulo: this.editTitle.trim(),
+        descripcion: this.editDescription.trim() || null,
+        category_ids: this.editCategoryIds,
+        fecha_vencimiento: this.editDueDate ? new Date(this.editDueDate).toISOString() : null,
+      })
+      .subscribe({
+        next: (updated) => {
+          const index = this.tasks.findIndex((t) => t.id === updated.id);
+          if (index !== -1) {
+            this.tasks[index] = updated;
+          }
+          this.cancelEdit();
+          this.toast.show('Tarea actualizada', 'success');
+        },
+        error: () => this.toast.show('Error al actualizar tarea', 'error'),
+      });
+  }
+
   toggleTask(task: Task): void {
     this.taskService.toggleTask(task.id).subscribe({
       next: (updated) => {
@@ -163,7 +219,18 @@ export class AppComponent implements OnInit {
     });
   }
 
-  deleteTask(task: Task): void {
+  confirmDelete(task: Task): void {
+    this.deleteConfirmTask = task;
+  }
+
+  cancelDelete(): void {
+    this.deleteConfirmTask = null;
+  }
+
+  executeDelete(): void {
+    if (!this.deleteConfirmTask) return;
+    const task = this.deleteConfirmTask;
+    this.deleteConfirmTask = null;
     this.taskService.deleteTask(task.id).subscribe({
       next: () => {
         this.tasks = this.tasks.filter((t) => t.id !== task.id);

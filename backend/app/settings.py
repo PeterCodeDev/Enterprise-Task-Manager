@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         "http://localhost:80",
         "http://localhost:4200",
     ]
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 1440
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

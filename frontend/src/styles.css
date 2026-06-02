@@ -77,6 +77,33 @@ h1 {
   background: #d63d5e;
 }
 
+.btn-edit {
+  background: #ffd166;
+  color: #333;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-edit:hover {
+  background: #f0c14b;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+}
+
 .task-list {
   list-style: none;
 }
@@ -344,4 +371,72 @@ h2 {
   background: #ef476f !important;
   color: #fff !important;
   border-color: #ef476f !important;
+}
+
+.edit-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.edit-input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.edit-categories {
+  margin-bottom: 0;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+.modal-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal-text {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
