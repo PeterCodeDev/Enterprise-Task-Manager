@@ -4,14 +4,14 @@ import { AuthService } from './auth.service';
 import { CategoryService } from './category.service';
 import { ToastService } from './toast.service';
 import { ThemeService } from './theme.service';
-import { Task, Category } from './task.model';
+import { Task, Category, Subtask, Attachment } from './task.model';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
-  currentView: 'dashboard' | 'tasks' | 'categories' | 'calendar' = 'dashboard';
+  currentView: 'dashboard' | 'tasks' | 'categories' | 'calendar' | 'kanban' = 'dashboard';
   tasks: Task[] = [];
   categories: Category[] = [];
   newTitle = '';
@@ -61,7 +61,7 @@ export class AppComponent implements OnInit {
   showRegister = false;
 
   constructor(
-    private taskService: TaskService,
+    public taskService: TaskService,
     private categoryService: CategoryService,
     public authService: AuthService,
     public toast: ToastService,
@@ -76,7 +76,7 @@ export class AppComponent implements OnInit {
     }
   }
 
-  setView(view: 'dashboard' | 'tasks' | 'categories' | 'calendar'): void {
+  setView(view: 'dashboard' | 'tasks' | 'categories' | 'calendar' | 'kanban'): void {
     this.currentView = view;
     if (view === 'dashboard' || view === 'tasks') {
       this.loadTasks();
@@ -594,5 +594,66 @@ export class AppComponent implements OnInit {
     const [moved] = this.tasks.splice(fromIdx, 1);
     this.tasks.splice(toIdx, 0, moved);
     this.toast.show('Tarea reordenada', 'info');
+  }
+
+  kanbanColumns = ['pendiente', 'en_progreso', 'bloqueada', 'en_revision', 'completada'];
+
+  kanbanTasks(estado: string): Task[] {
+    return this.tasks.filter((t) => t.estado === estado);
+  }
+
+  onKanbanDragStart(event: DragEvent, task: Task): void {
+    event.dataTransfer?.setData('text/plain', task.id.toString());
+  }
+
+  onKanbanDrop(event: DragEvent, estado: string): void {
+    event.preventDefault();
+    const taskId = parseInt(event.dataTransfer?.getData('text/plain') || '', 10);
+    const task = this.tasks.find((t) => t.id === taskId);
+    if (!task || task.estado === estado) return;
+    task.estado = estado;
+    task.completada = estado === 'completada';
+    this.taskService.updateTask(taskId, {
+      titulo: task.titulo,
+      descripcion: task.descripcion,
+      category_ids: task.categories.map((c) => c.id),
+      prioridad: task.prioridad,
+      estado: estado,
+      fecha_vencimiento: task.fecha_vencimiento,
+    }).subscribe({
+      next: (updated) => {
+        const idx = this.tasks.findIndex((t) => t.id === updated.id);
+        if (idx !== -1) this.tasks[idx] = updated;
+        this.toast.show(`Movida a ${this.estadoLabel(estado)}`, 'info');
+      },
+      error: () => this.toast.show('Error al mover tarea', 'error'),
+    });
+  }
+
+  onKanbanDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  uploadFile(task: Task, fileInput: HTMLInputElement): void {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    this.taskService.uploadAttachment(task.id, file).subscribe({
+      next: (att) => {
+        task.attachments.push(att);
+        this.toast.show('Archivo subido', 'success');
+      },
+      error: () => this.toast.show('Error al subir archivo', 'error'),
+    });
+    fileInput.value = '';
+  }
+
+  deleteAttachment(att: Attachment, task: Task): void {
+    this.taskService.deleteAttachment(att.id).subscribe({
+      next: () => {
+        task.attachments = task.attachments.filter((a) => a.id !== att.id);
+        this.toast.show('Archivo eliminado', 'info');
+      },
+      error: () => this.toast.show('Error al eliminar archivo', 'error'),
+    });
   }
 }

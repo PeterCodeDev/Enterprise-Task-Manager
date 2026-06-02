@@ -2,23 +2,26 @@ import time
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text, case
+import os
+import shutil
 
 from app.settings import settings
 from app.logging_config import logger
 from app.database import get_db
-from app.models import UserModel, TaskModel, CategoryModel, SubtaskModel
+from app.models import UserModel, TaskModel, CategoryModel, SubtaskModel, AttachmentModel
 from app.schemas import (
     UserCreate, UserResponse, UserLogin, Token,
     TaskCreate, TaskUpdate, TaskResponse,
     CategoryCreate, CategoryResponse,
     PasswordChange,
     SubtaskCreate, SubtaskResponse,
+    AttachmentResponse,
 )
 from app.security import get_password_hash, verify_password, create_access_token
 from app.auth import get_current_user
@@ -342,6 +345,69 @@ def delete_subtask(
     if not sub:
         raise NotFoundException(detail="Subtarea no encontrada")
     db.delete(sub)
+    db.commit()
+
+
+UPLOAD_DIR = "/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@app.post("/api/tasks/{task_id}/attachments", response_model=AttachmentResponse, status_code=201)
+async def upload_attachment(
+    task_id: int,
+    file: UploadFile = File(...),
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    task = db.query(TaskModel).filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id).first()
+    if not task:
+        raise NotFoundException(detail="Tarea no encontrada")
+    safe_name = f"{task_id}_{int(__import__('time').time())}_{file.filename}"
+    filepath = os.path.join(UPLOAD_DIR, safe_name)
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    attachment = AttachmentModel(
+        task_id=task_id, filename=safe_name, original_name=file.filename,
+        size=os.path.getsize(filepath)
+    )
+    db.add(attachment)
+    db.commit()
+    db.refresh(attachment)
+    return attachment
+
+
+@app.get("/api/attachments/{attachment_id}")
+async def download_attachment(
+    attachment_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    att = db.query(AttachmentModel).join(TaskModel).filter(
+        AttachmentModel.id == attachment_id, TaskModel.user_id == current_user.id
+    ).first()
+    if not att:
+        raise NotFoundException(detail="Archivo no encontrado")
+    filepath = os.path.join(UPLOAD_DIR, att.filename)
+    if not os.path.exists(filepath):
+        raise NotFoundException(detail="Archivo no encontrado")
+    return FileResponse(filepath, filename=att.original_name)
+
+
+@app.delete("/api/attachments/{attachment_id}", status_code=204)
+def delete_attachment(
+    attachment_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    att = db.query(AttachmentModel).join(TaskModel).filter(
+        AttachmentModel.id == attachment_id, TaskModel.user_id == current_user.id
+    ).first()
+    if not att:
+        raise NotFoundException(detail="Archivo no encontrado")
+    filepath = os.path.join(UPLOAD_DIR, att.filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    db.delete(att)
     db.commit()
 
 

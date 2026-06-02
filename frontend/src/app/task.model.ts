@@ -15,6 +15,7 @@ export interface Task {
   user_id: number;
   categories: Category[];
   subtasks: Subtask[];
+  attachments: Attachment[];
 }
 
 export interface Subtask {
@@ -22,6 +23,14 @@ export interface Subtask {
   task_id: number;
   texto: string;
   completada: boolean;
+}
+
+export interface Attachment {
+  id: number;
+  task_id: number;
+  original_name: string;
+  size: number;
+  created_at: string;
 }
 
 export interface TaskCreate {

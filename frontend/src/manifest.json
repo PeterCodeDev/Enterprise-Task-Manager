@@ -1,0 +1,17 @@
+{
+  "name": "Enterprise Task Manager",
+  "short_name": "ETM",
+  "description": "Gestor de tareas profesional",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#4361ee",
+  "icons": [
+    {
+      "src": "/assets/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

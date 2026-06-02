@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Task, TaskCreate, Subtask } from './task.model';
+import { Task, TaskCreate, Subtask, Attachment } from './task.model';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -63,5 +63,19 @@ export class TaskService {
 
   deleteSubtask(subtaskId: number): Observable<void> {
     return this.http.delete<void>(`http://localhost:8000/api/subtasks/${subtaskId}`);
+  }
+
+  uploadAttachment(taskId: number, file: File): Observable<Attachment> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<Attachment>(`${this.apiUrl}/${taskId}/attachments`, formData);
+  }
+
+  deleteAttachment(attachmentId: number): Observable<void> {
+    return this.http.delete<void>(`http://localhost:8000/api/attachments/${attachmentId}`);
+  }
+
+  getAttachmentUrl(attachmentId: number): string {
+    return `http://localhost:8000/api/attachments/${attachmentId}`;
   }
 }

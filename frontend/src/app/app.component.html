@@ -49,6 +49,9 @@
           <a (click)="setView('tasks')" [class.active]="currentView === 'tasks'">
             <span class="nav-icon">✅</span> Tareas
           </a>
+          <a (click)="setView('kanban')" [class.active]="currentView === 'kanban'">
+            <span class="nav-icon">📋</span> Kanban
+          </a>
           <a (click)="setView('calendar')" [class.active]="currentView === 'calendar'">
             <span class="nav-icon">📅</span> Calendario
           </a>
@@ -328,6 +331,33 @@
           </div>
         </ng-container>
 
+        <!-- Kanban view -->
+        <ng-container *ngIf="currentView === 'kanban'">
+          <h2 class="view-title">Kanban</h2>
+          <div class="kanban-board">
+            <div *ngFor="let estado of kanbanColumns" class="kanban-column"
+              (dragover)="onKanbanDragOver($event)"
+              (drop)="onKanbanDrop($event, estado)">
+              <div class="kanban-header" [style.background]="estadoColor(estado)">
+                {{ estadoLabel(estado) }} ({{ kanbanTasks(estado).length }})
+              </div>
+              <div class="kanban-cards">
+                <div *ngFor="let task of kanbanTasks(estado)" class="kanban-card"
+                  draggable="true"
+                  (dragstart)="onKanbanDragStart($event, task)"
+                  (click)="openDetail(task)">
+                  <div class="kanban-card-priority" [style.background]="priorityColor(task.prioridad)"></div>
+                  <div class="kanban-card-title">{{ task.titulo }}</div>
+                  <div class="kanban-card-meta">
+                    <span *ngIf="task.fecha_vencimiento" class="kanban-card-date">{{ task.fecha_vencimiento | date:'dd/MM' }}</span>
+                    <span *ngIf="subtaskProgress(task)" class="kanban-card-subs">✓ {{ subtaskProgress(task) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
         <!-- Categories view -->
         <ng-container *ngIf="currentView === 'categories'">
           <h2 class="view-title">Categorías</h2>
@@ -395,6 +425,20 @@
               <input type="text" [(ngModel)]="newSubtaskText" name="newSubtaskText" placeholder="Añadir paso..."
                 class="create-input" style="flex:1" (keyup.enter)="addSubtask(detailTask)" />
               <button class="btn btn-primary btn-sm" (click)="addSubtask(detailTask)">+</button>
+            </div>
+          </div>
+          <div class="detail-field">
+            <label>Archivos adjuntos</label>
+            <div class="attach-list">
+              <div *ngFor="let att of detailTask.attachments" class="attach-item">
+                <span class="attach-name">{{ att.original_name }}</span>
+                <a [href]="taskService.getAttachmentUrl(att.id)" target="_blank" class="attach-dl">⬇</a>
+                <button class="subtask-del" (click)="deleteAttachment(att, detailTask)">✕</button>
+              </div>
+            </div>
+            <div class="attach-add">
+              <input type="file" #fileInput style="display:none" (change)="uploadFile(detailTask, fileInput)" />
+              <button class="btn btn-outline btn-sm" (click)="fileInput.click()">+ Adjuntar archivo</button>
             </div>
           </div>
         </div>

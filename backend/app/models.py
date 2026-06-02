@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -59,3 +59,19 @@ class SubtaskModel(Base):
 
 
 TaskModel.subtasks = relationship("SubtaskModel", back_populates="task", cascade="all, delete-orphan", order_by="SubtaskModel.id")
+
+
+class AttachmentModel(Base):
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    size = Column(Integer, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    task = relationship("TaskModel", back_populates="attachments")
+
+
+TaskModel.attachments = relationship("AttachmentModel", back_populates="task", cascade="all, delete-orphan", order_by="AttachmentModel.id")

@@ -79,6 +79,16 @@ class SubtaskResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AttachmentResponse(BaseModel):
+    id: int
+    task_id: int
+    original_name: str
+    size: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class TaskResponse(BaseModel):
     id: int
     titulo: str
@@ -90,5 +100,6 @@ class TaskResponse(BaseModel):
     user_id: int
     categories: List[CategoryResponse] = []
     subtasks: List[SubtaskResponse] = []
+    attachments: List[AttachmentResponse] = []
 
     model_config = {"from_attributes": True}

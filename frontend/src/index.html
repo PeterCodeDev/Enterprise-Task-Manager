@@ -5,6 +5,13 @@
     <title>Enterprise Task Manager</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#4361ee" />
+    <link rel="manifest" href="/manifest.json" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js');
+      }
+    </script>
     <script>
       (function () {
         var theme = localStorage.getItem('taskmanager_theme');

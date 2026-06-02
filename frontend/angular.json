@@ -17,7 +17,11 @@
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
-            "assets": [],
+            "assets": [
+              "src/assets",
+              "src/manifest.json",
+              "src/sw.js"
+            ],
             "styles": ["src/styles.css"],
             "scripts": []
           },
