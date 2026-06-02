@@ -9,10 +9,12 @@ export class TaskService {
 
   constructor(private http: HttpClient) {}
 
-  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean, search?: string): Observable<Task[]> {
+  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean, search?: string, sortBy?: string, sortOrder?: string): Observable<Task[]> {
     let params = new HttpParams()
       .set('page', page.toString())
-      .set('page_size', pageSize.toString());
+      .set('page_size', pageSize.toString())
+      .set('sort_by', sortBy || 'id')
+      .set('sort_order', sortOrder || 'desc');
     if (categoryId) {
       params = params.set('category_id', categoryId.toString());
     }

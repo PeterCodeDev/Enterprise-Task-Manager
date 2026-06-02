@@ -19,6 +19,8 @@ export class AppComponent implements OnInit {
   filterCategoryId: number | null = null;
   showVencidas = false;
   searchTerm = '';
+  sortBy = 'id';
+  sortOrder = 'desc';
   loading = false;
 
   editingTaskId: number | null = null;
@@ -122,7 +124,7 @@ export class AppComponent implements OnInit {
   loadTasks(): void {
     this.loading = true;
     const search = this.searchTerm.trim() || undefined;
-    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search).subscribe({
+    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder).subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;

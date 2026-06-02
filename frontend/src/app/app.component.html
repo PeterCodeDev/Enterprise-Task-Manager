@@ -50,6 +50,19 @@
       <button class="btn btn-secondary btn-sm" *ngIf="searchTerm" (click)="searchTerm = ''; loadTasks()">Limpiar</button>
     </div>
 
+    <!-- Sort -->
+    <div class="sort-bar">
+      <span class="filter-label">Ordenar por:</span>
+      <select [(ngModel)]="sortBy" (change)="loadTasks()" class="sort-select">
+        <option value="id">Más recientes</option>
+        <option value="fecha_vencimiento">Fecha de vencimiento</option>
+        <option value="titulo">Alfabéticamente</option>
+      </select>
+      <button class="btn btn-icon" (click)="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'; loadTasks()" [title]="sortOrder === 'asc' ? 'Ascendente' : 'Descendente'">
+        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+      </button>
+    </div>
+
     <!-- Filters -->
     <div class="filter-bar">
       <div class="category-filter" *ngIf="categories.length > 0">

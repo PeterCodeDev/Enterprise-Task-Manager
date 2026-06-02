@@ -124,6 +124,8 @@ def list_tasks(
     category_id: Optional[int] = Query(None),
     vencidas: Optional[bool] = Query(None),
     search: Optional[str] = Query(None, description="Buscar por título o descripción"),
+    sort_by: Optional[str] = Query("id", description="Campo: id, titulo, fecha_vencimiento"),
+    sort_order: Optional[str] = Query("desc", description="Orden: asc, desc"),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -144,8 +146,17 @@ def list_tasks(
         query = query.filter(
             TaskModel.titulo.ilike(search_term) | TaskModel.descripcion.ilike(search_term)
         )
+    sort_column = {
+        "id": TaskModel.id,
+        "titulo": TaskModel.titulo,
+        "fecha_vencimiento": TaskModel.fecha_vencimiento,
+    }.get(sort_by, TaskModel.id)
+    if sort_order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
     offset = (page - 1) * page_size
-    return query.order_by(TaskModel.id.desc()).offset(offset).limit(page_size).all()
+    return query.offset(offset).limit(page_size).all()
 
 
 @app.post("/api/tasks", response_model=TaskResponse, status_code=201)
