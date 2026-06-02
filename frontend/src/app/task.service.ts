@@ -9,7 +9,7 @@ export class TaskService {
 
   constructor(private http: HttpClient) {}
 
-  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean): Observable<Task[]> {
+  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean, search?: string): Observable<Task[]> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('page_size', pageSize.toString());
@@ -18,6 +18,9 @@ export class TaskService {
     }
     if (vencidas) {
       params = params.set('vencidas', 'true');
+    }
+    if (search) {
+      params = params.set('search', search);
     }
     return this.http.get<Task[]>(this.apiUrl, { params });
   }

@@ -18,6 +18,7 @@ export class AppComponent implements OnInit {
   selectedCategoryIds: number[] = [];
   filterCategoryId: number | null = null;
   showVencidas = false;
+  searchTerm = '';
   loading = false;
 
   editingTaskId: number | null = null;
@@ -26,6 +27,11 @@ export class AppComponent implements OnInit {
   editDueDate = '';
   editCategoryIds: number[] = [];
   deleteConfirmTask: Task | null = null;
+
+  showCategoryPanel = false;
+  newCategoryName = '';
+  newCategoryColor = '#4361ee';
+  deleteConfirmCatId: number | null = null;
 
   loginEmail = '';
   loginPassword = '';
@@ -115,7 +121,8 @@ export class AppComponent implements OnInit {
 
   loadTasks(): void {
     this.loading = true;
-    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas).subscribe({
+    const search = this.searchTerm.trim() || undefined;
+    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search).subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;
@@ -237,6 +244,48 @@ export class AppComponent implements OnInit {
         this.toast.show('Tarea eliminada', 'info');
       },
       error: () => this.toast.show('Error al eliminar tarea', 'error'),
+    });
+  }
+
+  createCategory(): void {
+    const nombre = this.newCategoryName.trim();
+    if (!nombre) return;
+    this.categoryService.createCategory(nombre, this.newCategoryColor).subscribe({
+      next: (cat) => {
+        this.categories.push(cat);
+        this.newCategoryName = '';
+        this.newCategoryColor = '#4361ee';
+        this.toast.show('Categoría creada', 'success');
+      },
+      error: (err) => {
+        if (err.status === 409) {
+          this.toast.show('Esa categoría ya existe', 'error');
+        } else {
+          this.toast.show('Error al crear categoría', 'error');
+        }
+      },
+    });
+  }
+
+  confirmDeleteCategory(catId: number): void {
+    this.deleteConfirmCatId = catId;
+  }
+
+  cancelDeleteCategory(): void {
+    this.deleteConfirmCatId = null;
+  }
+
+  deleteCategory(): void {
+    if (this.deleteConfirmCatId === null) return;
+    const catId = this.deleteConfirmCatId;
+    this.deleteConfirmCatId = null;
+    this.categoryService.deleteCategory(catId).subscribe({
+      next: () => {
+        this.categories = this.categories.filter((c) => c.id !== catId);
+        this.loadTasks();
+        this.toast.show('Categoría eliminada', 'info');
+      },
+      error: () => this.toast.show('Error al eliminar categoría', 'error'),
     });
   }
 }

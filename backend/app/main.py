@@ -123,6 +123,7 @@ def list_tasks(
     completada: Optional[bool] = Query(None),
     category_id: Optional[int] = Query(None),
     vencidas: Optional[bool] = Query(None),
+    search: Optional[str] = Query(None, description="Buscar por título o descripción"),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -137,6 +138,11 @@ def list_tasks(
             TaskModel.fecha_vencimiento.isnot(None),
             TaskModel.fecha_vencimiento < dt.utcnow(),
             TaskModel.completada == False,
+        )
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            TaskModel.titulo.ilike(search_term) | TaskModel.descripcion.ilike(search_term)
         )
     offset = (page - 1) * page_size
     return query.order_by(TaskModel.id.desc()).offset(offset).limit(page_size).all()

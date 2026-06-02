@@ -43,6 +43,13 @@
       <button class="btn btn-logout" (click)="logout()">Cerrar sesión</button>
     </div>
 
+    <!-- Search -->
+    <div class="search-bar">
+      <input type="text" [(ngModel)]="searchTerm" name="searchTerm" placeholder="Buscar tareas..." class="search-input"
+        (keyup.enter)="loadTasks()" />
+      <button class="btn btn-secondary btn-sm" *ngIf="searchTerm" (click)="searchTerm = ''; loadTasks()">Limpiar</button>
+    </div>
+
     <!-- Filters -->
     <div class="filter-bar">
       <div class="category-filter" *ngIf="categories.length > 0">
@@ -78,6 +85,28 @@
         [style.background]="selectedCategoryIds.includes(cat.id) ? cat.color : 'transparent'"
         [class.active]="selectedCategoryIds.includes(cat.id)"
         (click)="toggleCategory(cat.id)">{{ cat.nombre }}</span>
+    </div>
+
+    <!-- Category management -->
+    <div class="category-manager">
+      <button class="btn btn-outline btn-sm" (click)="showCategoryPanel = !showCategoryPanel">
+        {{ showCategoryPanel ? 'Ocultar' : 'Gestionar categorías' }}
+      </button>
+      <div class="category-panel" *ngIf="showCategoryPanel">
+        <div class="cat-create">
+          <input type="text" [(ngModel)]="newCategoryName" name="catName" placeholder="Nueva categoría" class="cat-input" (keyup.enter)="createCategory()" />
+          <input type="color" [(ngModel)]="newCategoryColor" name="catColor" class="cat-color" />
+          <button class="btn btn-primary btn-sm" (click)="createCategory()">Crear</button>
+        </div>
+        <ul class="cat-list" *ngIf="categories.length > 0">
+          <li *ngFor="let cat of categories" class="cat-item">
+            <span class="cat-swatch" [style.background]="cat.color"></span>
+            <span class="cat-name">{{ cat.nombre }}</span>
+            <button class="btn btn-sm btn-outline-danger" (click)="confirmDeleteCategory(cat.id)">Eliminar</button>
+          </li>
+        </ul>
+        <div *ngIf="categories.length === 0" class="empty-state">No hay categorías. Crea una.</div>
+      </div>
     </div>
 
     <div *ngIf="loading" class="empty-state">Cargando tareas...</div>
@@ -146,6 +175,17 @@
         <div class="modal-actions">
           <button class="btn btn-danger" (click)="executeDelete()">Confirmar</button>
           <button class="btn btn-secondary" (click)="cancelDelete()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete category confirmation modal -->
+    <div class="modal-overlay" *ngIf="deleteConfirmCatId !== null" (click)="cancelDeleteCategory()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <p class="modal-text">¿Eliminar esta categoría? Las tareas que la usan no se borrarán.</p>
+        <div class="modal-actions">
+          <button class="btn btn-danger" (click)="deleteCategory()">Confirmar</button>
+          <button class="btn btn-secondary" (click)="cancelDeleteCategory()">Cancelar</button>
         </div>
       </div>
     </div>
