@@ -467,8 +467,12 @@ async def backup_import(
     return {"imported": count}
 
 
-UPLOAD_DIR = "/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/uploads")
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except PermissionError:
+    UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _log_activity(db: Session, task_id: int, accion: str, detalle: str = None):
