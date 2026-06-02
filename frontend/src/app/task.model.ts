@@ -10,6 +10,7 @@ export interface Task {
   descripcion: string | null;
   completada: boolean;
   prioridad: string;
+  estado: string;
   fecha_vencimiento: string | null;
   user_id: number;
   categories: Category[];
@@ -28,5 +29,6 @@ export interface TaskCreate {
   descripcion: string | null;
   category_ids: number[];
   prioridad: string;
+  estado: string;
   fecha_vencimiento: string | null;
 }

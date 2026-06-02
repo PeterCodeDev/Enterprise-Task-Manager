@@ -41,6 +41,7 @@ class TaskModel(Base):
     descripcion = Column(String(1000), nullable=True)
     completada = Column(Boolean, default=False)
     prioridad = Column(String(10), default="media", nullable=False)
+    estado = Column(String(20), default="pendiente", nullable=False)
     fecha_vencimiento = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 

@@ -191,6 +191,12 @@
                   <option value="media">🟡 Media</option>
                   <option value="baja">🟢 Baja</option>
                 </select>
+                <select [(ngModel)]="newEstado" name="newEstado" class="priority-select">
+                  <option value="pendiente">📋 Pendiente</option>
+                  <option value="en_progreso">🔄 En progreso</option>
+                  <option value="bloqueada">🚫 Bloqueada</option>
+                  <option value="en_revision">👁 En revisión</option>
+                </select>
                 <button type="submit" class="btn btn-primary btn-sm">Añadir</button>
                 <button type="button" class="btn btn-secondary btn-sm" (click)="showCreateForm = false">Cancelar</button>
               </div>
@@ -232,11 +238,17 @@
                   <input type="text" [(ngModel)]="editTitle" name="editTitle" placeholder="Título" class="edit-input" />
                   <input type="text" [(ngModel)]="editDescription" name="editDescription" placeholder="Descripción (opcional)" class="edit-input" />
                   <input type="date" [(ngModel)]="editDueDate" name="editDueDate" class="date-input edit-input" />
-                  <select [(ngModel)]="editPriority" name="editPriority" class="priority-select edit-input">
-                    <option value="alta">🔴 Alta</option>
-                    <option value="media">🟡 Media</option>
-                    <option value="baja">🟢 Baja</option>
-                  </select>
+                <select [(ngModel)]="editPriority" name="editPriority" class="priority-select edit-input">
+                  <option value="alta">🔴 Alta</option>
+                  <option value="media">🟡 Media</option>
+                  <option value="baja">🟢 Baja</option>
+                </select>
+                <select [(ngModel)]="editEstado" name="editEstado" class="priority-select edit-input">
+                  <option value="pendiente">📋 Pendiente</option>
+                  <option value="en_progreso">🔄 En progreso</option>
+                  <option value="bloqueada">🚫 Bloqueada</option>
+                  <option value="en_revision">👁 En revisión</option>
+                </select>
                   <div class="category-picker edit-categories" *ngIf="categories.length > 0">
                     <span *ngFor="let cat of categories" class="category-tag"
                       [style.borderColor]="cat.color"
@@ -255,13 +267,18 @@
                 <div class="task-info">
                   <div class="task-title" (click)="openDetail(task)">
                     {{ task.titulo }}
+                    <span class="estado-badge" [style.background]="estadoColor(task.estado)">
+                      {{ estadoLabel(task.estado) }}
+                    </span>
                     <span class="priority-badge" [style.background]="priorityColor(task.prioridad)">
                       {{ priorityLabel(task.prioridad) }}
                     </span>
+                    <span class="subtask-counter" *ngIf="subtaskProgress(task)">
+                      ✓ {{ subtaskProgress(task) }}
+                    </span>
                     <span class="due-badge" *ngIf="task.fecha_vencimiento && !task.completada"
                       [class.overdue-badge]="isOverdue(task)">
-                      {{ isOverdue(task) ? 'Vencida: ' : 'Vence: ' }}
-                      {{ task.fecha_vencimiento | date:'dd/MM/yyyy' }}
+                      {{ fechaRelativa(task.fecha_vencimiento) || (isOverdue(task) ? 'Vencida: ' : 'Vence: ') + (task.fecha_vencimiento | date:'dd/MM/yyyy') }}
                     </span>
                   </div>
                   <div class="task-desc" *ngIf="task.descripcion">{{ task.descripcion }}</div>
@@ -341,7 +358,7 @@
             {{ priorityLabel(detailTask.prioridad) }}
           </span>
           <span class="detail-status" [class.completed-badge]="detailTask.completada">
-            {{ detailTask.completada ? '✓ Completada' : '○ Pendiente' }}
+            <span class="estado-badge" [style.background]="estadoColor(detailTask.estado)">{{ estadoLabel(detailTask.estado) }}</span>
           </span>
         </div>
         <div class="detail-body">

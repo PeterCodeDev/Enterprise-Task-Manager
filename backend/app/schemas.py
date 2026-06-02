@@ -53,6 +53,7 @@ class TaskCreate(BaseModel):
     descripcion: Optional[str] = Field(None, max_length=1000)
     category_ids: List[int] = Field(default_factory=list)
     prioridad: str = Field(default="media", pattern="^(alta|media|baja)$")
+    estado: str = Field(default="pendiente", pattern="^(pendiente|en_progreso|completada|bloqueada|en_revision)$")
     fecha_vencimiento: Optional[datetime] = None
 
 
@@ -61,6 +62,7 @@ class TaskUpdate(BaseModel):
     descripcion: Optional[str] = Field(None, max_length=1000)
     category_ids: List[int] = Field(default_factory=list)
     prioridad: str = Field(default="media", pattern="^(alta|media|baja)$")
+    estado: str = Field(default="pendiente", pattern="^(pendiente|en_progreso|completada|bloqueada|en_revision)$")
     fecha_vencimiento: Optional[datetime] = None
 
 
@@ -83,6 +85,7 @@ class TaskResponse(BaseModel):
     descripcion: Optional[str]
     completada: bool
     prioridad: str
+    estado: str
     fecha_vencimiento: Optional[datetime] = None
     user_id: int
     categories: List[CategoryResponse] = []

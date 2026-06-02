@@ -18,6 +18,7 @@ export class AppComponent implements OnInit {
   newDescription = '';
   newDueDate = '';
   newPriority = 'media';
+  newEstado = 'pendiente';
   selectedCategoryIds: number[] = [];
   filterCategoryId: number | null = null;
   filterPriority: string | null = null;
@@ -37,6 +38,7 @@ export class AppComponent implements OnInit {
   editDescription = '';
   editDueDate = '';
   editPriority = 'media';
+  editEstado = 'pendiente';
   editCategoryIds: number[] = [];
   deleteConfirmTask: Task | null = null;
   detailTask: Task | null = null;
@@ -131,6 +133,47 @@ export class AppComponent implements OnInit {
     return 'Baja';
   }
 
+  estadoColor(estado: string): string {
+    const colors: Record<string, string> = {
+      pendiente: '#6c757d',
+      en_progreso: '#4361ee',
+      completada: '#06d6a0',
+      bloqueada: '#ef476f',
+      en_revision: '#ffd166',
+    };
+    return colors[estado] || '#6c757d';
+  }
+
+  estadoLabel(estado: string): string {
+    const labels: Record<string, string> = {
+      pendiente: 'Pendiente',
+      en_progreso: 'En progreso',
+      completada: 'Completada',
+      bloqueada: 'Bloqueada',
+      en_revision: 'En revisión',
+    };
+    return labels[estado] || estado;
+  }
+
+  fechaRelativa(fecha: string | null): string {
+    if (!fecha) return '';
+    const ahora = new Date();
+    const f = new Date(fecha);
+    const diff = Math.round((f.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return 'Hoy';
+    if (diff === 1) return 'Mañana';
+    if (diff === -1) return 'Ayer';
+    if (diff < 0) return `Hace ${Math.abs(diff)} días`;
+    if (diff <= 7) return `En ${diff} días`;
+    return '';
+  }
+
+  subtaskProgress(task: Task): string {
+    if (!task.subtasks || task.subtasks.length === 0) return '';
+    const done = task.subtasks.filter((s) => s.completada).length;
+    return `${done}/${task.subtasks.length}`;
+  }
+
   login(): void {
     if (!this.loginEmail || !this.loginPassword) return;
     this.errorMessage = '';
@@ -218,6 +261,7 @@ export class AppComponent implements OnInit {
         descripcion: this.newDescription.trim() || null,
         category_ids: this.selectedCategoryIds,
         prioridad: this.newPriority,
+        estado: this.newEstado,
         fecha_vencimiento: this.newDueDate ? new Date(this.newDueDate).toISOString() : null,
       })
       .subscribe({
@@ -227,6 +271,7 @@ export class AppComponent implements OnInit {
           this.newDescription = '';
           this.newDueDate = '';
           this.newPriority = 'media';
+          this.newEstado = 'pendiente';
           this.selectedCategoryIds = [];
           this.showCreateForm = false;
           this.toast.show('Tarea creada', 'success');
@@ -240,6 +285,7 @@ export class AppComponent implements OnInit {
     this.editTitle = task.titulo;
     this.editDescription = task.descripcion || '';
     this.editPriority = task.prioridad;
+    this.editEstado = task.estado;
     this.editDueDate = task.fecha_vencimiento
       ? new Date(task.fecha_vencimiento).toISOString().slice(0, 10)
       : '';
@@ -271,6 +317,7 @@ export class AppComponent implements OnInit {
         descripcion: this.editDescription.trim() || null,
         category_ids: this.editCategoryIds,
         prioridad: this.editPriority,
+        estado: this.editEstado,
         fecha_vencimiento: this.editDueDate ? new Date(this.editDueDate).toISOString() : null,
       })
       .subscribe({

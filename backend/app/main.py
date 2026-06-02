@@ -195,6 +195,7 @@ def create_task(
         descripcion=task.descripcion,
         completada=False,
         prioridad=task.prioridad,
+        estado=task.estado,
         fecha_vencimiento=task.fecha_vencimiento,
         user_id=current_user.id,
     )
@@ -235,6 +236,7 @@ def update_task(
     db_task.titulo = task.titulo
     db_task.descripcion = task.descripcion
     db_task.prioridad = task.prioridad
+    db_task.estado = task.estado
     db_task.fecha_vencimiento = task.fecha_vencimiento
     db_task.categories = _get_categories(db, task.category_ids)
     db.commit()
@@ -254,6 +256,7 @@ def toggle_task(
     if not db_task:
         raise NotFoundException(detail="Tarea no encontrada")
     db_task.completada = not db_task.completada
+    db_task.estado = "completada" if db_task.completada else "pendiente"
     db.commit()
     db.refresh(db_task)
     return db_task
