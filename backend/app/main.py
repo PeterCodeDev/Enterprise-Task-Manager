@@ -13,6 +13,7 @@ import shutil
 import json
 import secrets
 import hashlib
+import uuid
 from datetime import datetime as dt, timedelta
 
 from app.settings import settings
@@ -479,74 +480,27 @@ def _log_activity(db: Session, task_id: int, accion: str, detalle: str = None):
     db.add(ActivityLogModel(task_id=task_id, accion=accion, detalle=detalle))
 
 
-@app.patch("/api/tasks/{task_id}/timer", response_model=TaskResponse)
-def task_timer(
+@app.patch("/api/tasks/{task_id}/public-link")
+def generate_public_link(
     task_id: int,
-    action: str = Query(..., pattern="^(start|stop)$"),
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     task = db.query(TaskModel).filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id).first()
     if not task:
         raise NotFoundException(detail="Tarea no encontrada")
-    if action == "start":
-        _log_activity(db, task.id, "timer_start", "Temporizador iniciado")
-    else:
-        task.tiempo_acumulado += 60  # 1 minuto por parada (simplificado)
-        _log_activity(db, task.id, "timer_stop", f"+1 min acumulado")
-    db.commit()
-    db.refresh(task)
+    if not task.public_uuid:
+        task.public_uuid = str(uuid.uuid4())
+        db.commit()
+    return {"public_uuid": task.public_uuid}
+
+
+@app.get("/api/public/tasks/{public_uuid}", response_model=TaskResponse)
+def get_public_task(public_uuid: str, db: Session = Depends(get_db)):
+    task = db.query(TaskModel).filter(TaskModel.public_uuid == public_uuid).first()
+    if not task:
+        raise NotFoundException(detail="Tarea no encontrada")
     return task
-
-
-@app.get("/api/tasks/{task_id}/activity", response_model=List[ActivityLogResponse])
-def task_activity(
-    task_id: int,
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    task = db.query(TaskModel).filter(TaskModel.id == task_id, TaskModel.user_id == current_user.id).first()
-    if not task:
-        raise NotFoundException(detail="Tarea no encontrada")
-    return task.activity_logs[:50]
-
-
-@app.get("/api/tokens", response_model=List[ApiTokenResponse])
-def list_tokens(
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    return db.query(ApiTokenModel).filter(ApiTokenModel.user_id == current_user.id).order_by(ApiTokenModel.created_at.desc()).all()
-
-
-@app.post("/api/tokens", status_code=201)
-def create_token(
-    data: ApiTokenCreate,
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    db_token = ApiTokenModel(user_id=current_user.id, name=data.name, token_hash=token_hash)
-    db.add(db_token)
-    db.commit()
-    db.refresh(db_token)
-    return {"id": db_token.id, "name": db_token.name, "token": f"etm_{raw_token}", "created_at": db_token.created_at}
-
-
-@app.delete("/api/tokens/{token_id}", status_code=204)
-def delete_token(
-    token_id: int,
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    token = db.query(ApiTokenModel).filter(
-        ApiTokenModel.id == token_id, ApiTokenModel.user_id == current_user.id
-    ).first()
-    if not token:
-        raise NotFoundException(detail="Token no encontrado")
-    db.delete(token)
-    db.commit()
 
 
 @app.get("/api/health")

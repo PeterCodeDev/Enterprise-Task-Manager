@@ -144,6 +144,7 @@ class TaskResponse(BaseModel):
     estado: str
     recurrencia: Optional[str] = None
     tiempo_acumulado: int = 0
+    public_uuid: Optional[str] = None
     fecha_vencimiento: Optional[datetime] = None
     user_id: int
     categories: List[CategoryResponse] = []

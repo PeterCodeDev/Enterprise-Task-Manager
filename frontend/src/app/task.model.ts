@@ -13,6 +13,7 @@ export interface Task {
   estado: string;
   recurrencia: string | null;
   tiempo_acumulado: number;
+  public_uuid: string | null;
   fecha_vencimiento: string | null;
   user_id: number;
   categories: Category[];

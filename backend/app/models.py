@@ -47,6 +47,7 @@ class TaskModel(Base):
     estado = Column(String(20), default="pendiente", nullable=False)
     recurrencia = Column(String(20), nullable=True)
     tiempo_acumulado = Column(Integer, default=0, nullable=False, server_default="0")
+    public_uuid = Column(String(36), nullable=True, unique=True)
     fecha_vencimiento = Column(DateTime, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 

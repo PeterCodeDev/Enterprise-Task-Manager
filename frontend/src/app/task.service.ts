@@ -134,4 +134,8 @@ export class TaskService {
   deleteToken(tokenId: number): Observable<void> {
     return this.http.delete<void>(`http://localhost:8000/api/tokens/${tokenId}`);
   }
+
+  generatePublicLink(taskId: number): Observable<{ public_uuid: string }> {
+    return this.http.patch<{ public_uuid: string }>(`${this.apiUrl}/${taskId}/public-link`, {});
+  }
 }

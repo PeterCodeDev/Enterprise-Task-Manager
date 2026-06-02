@@ -80,7 +80,20 @@
       <main class="main">
         <!-- Dashboard -->
         <ng-container *ngIf="currentView === 'dashboard'">
-          <h2 class="view-title">Dashboard</h2>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+            <h2 class="view-title" style="margin-bottom:0">Dashboard</h2>
+            <button class="btn btn-outline btn-sm" (click)="editingWidgets = !editingWidgets">
+              {{ editingWidgets ? '✓ Hecho' : 'Personalizar' }}
+            </button>
+          </div>
+          <div *ngIf="editingWidgets" class="widget-picker" style="margin-bottom:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn btn-sm" [class.btn-primary]="dashboardWidgets.includes('stats')" [class.btn-secondary]="!dashboardWidgets.includes('stats')" (click)="toggleWidget('stats')">Contadores</button>
+            <button class="btn btn-sm" [class.btn-primary]="dashboardWidgets.includes('progress')" [class.btn-secondary]="!dashboardWidgets.includes('progress')" (click)="toggleWidget('progress')">Progreso</button>
+            <button class="btn btn-sm" [class.btn-primary]="dashboardWidgets.includes('hoy')" [class.btn-secondary]="!dashboardWidgets.includes('hoy')" (click)="toggleWidget('hoy')">Hoy</button>
+            <button class="btn btn-sm" [class.btn-primary]="dashboardWidgets.includes('semana')" [class.btn-secondary]="!dashboardWidgets.includes('semana')" (click)="toggleWidget('semana')">Semana</button>
+          </div>
+
+          <ng-container *ngIf="dashboardWidgets.includes('stats')">
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-number">{{ stats.pendientes }}</div>
@@ -99,26 +112,32 @@
               <div class="stat-label">Total</div>
             </div>
           </div>
+          </ng-container>
+
+          <ng-container *ngIf="dashboardWidgets.includes('progress')">
           <div class="progress-section">
             <div class="progress-label">Progreso: {{ stats.porcentaje }}%</div>
             <div class="progress-bar">
               <div class="progress-fill" [style.width]="stats.porcentaje + '%'"></div>
             </div>
           </div>
+          </ng-container>
+
           <div class="quick-actions">
             <button class="btn btn-primary" (click)="setView('tasks')">Ir a tareas</button>
             <button class="btn btn-outline" (click)="setView('categories')">Gestionar categorías</button>
           </div>
 
+          <ng-container *ngIf="dashboardWidgets.includes('hoy') || dashboardWidgets.includes('semana')">
           <div class="dashboard-lists" *ngIf="stats.tareasHoy.length > 0 || stats.tareasSemana.length > 0">
-            <div class="dash-section" *ngIf="stats.tareasHoy.length > 0">
+            <div class="dash-section" *ngIf="dashboardWidgets.includes('hoy') && stats.tareasHoy.length > 0">
               <h3 class="dash-section-title">📅 Hoy ({{ stats.tareasHoy.length }})</h3>
               <div class="dash-task" *ngFor="let task of stats.tareasHoy" (click)="openDetailAndLoadComments(task)">
                 <span class="priority-dot" [style.background]="priorityColor(task.prioridad)"></span>
                 <span class="dash-task-title">{{ task.titulo }}</span>
               </div>
             </div>
-            <div class="dash-section" *ngIf="stats.tareasSemana.length > 0">
+            <div class="dash-section" *ngIf="dashboardWidgets.includes('semana') && stats.tareasSemana.length > 0">
               <h3 class="dash-section-title">📆 Esta semana ({{ stats.tareasSemana.length }})</h3>
               <div class="dash-task" *ngFor="let task of stats.tareasSemana" (click)="openDetailAndLoadComments(task)">
                 <span class="priority-dot" [style.background]="priorityColor(task.prioridad)"></span>
@@ -128,6 +147,7 @@
             </div>
           </div>
         </ng-container>
+        </ng-container>
 
         <!-- Tasks view -->
         <ng-container *ngIf="currentView === 'tasks'">
@@ -135,7 +155,8 @@
 
           <!-- Search + Sort -->
           <div class="toolbar">
-            <input type="text" [(ngModel)]="searchTerm" name="searchTerm" placeholder="Buscar tareas..." class="search-input"
+            <input type="text" [(ngModel)]="searchTerm" name="searchTerm"             placeholder="Buscar... (@alta @hoy @trabajo)"
+            class="search-input"
               (keyup.enter)="loadTasks()" />
             <select [(ngModel)]="sortBy" (change)="loadTasks()" class="sort-select">
               <option value="id">Más recientes</option>
@@ -201,6 +222,14 @@
 
           <!-- Create form (collapsible) -->
           <div class="create-panel" *ngIf="showCreateForm">
+            <div *ngIf="templates.length > 0" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap">
+              <span style="font-size:0.8rem;color:var(--text-muted)">Plantilla:</span>
+              <button *ngFor="let tpl of templates" class="btn btn-outline btn-sm" (click)="applyTemplate(tpl)">{{ tpl.name }}</button>
+            </div>
+            <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem">
+              <input type="text" [(ngModel)]="newTemplateName" name="newTemplateName" placeholder="Nombre plantilla" class="create-input" style="flex:1" />
+              <button class="btn btn-outline btn-sm" (click)="saveTemplate()">💾 Guardar plantilla</button>
+            </div>
             <form (ngSubmit)="createTask()">
               <input type="text" [(ngModel)]="newTitle" name="titulo" placeholder="Título de la tarea" required class="create-input" />
               <textarea [(ngModel)]="newDescription" name="descripcion" placeholder="Descripción (opcional)" class="create-input create-textarea" rows="2"></textarea>
@@ -423,7 +452,7 @@
         <div class="detail-body">
           <div class="detail-field" *ngIf="detailTask.descripcion">
             <label>Descripción</label>
-            <p>{{ detailTask.descripcion }}</p>
+            <p [innerHTML]="renderMarkdown(detailTask.descripcion)"></p>
           </div>
           <div class="detail-field">
             <label>Fecha de vencimiento</label>
@@ -516,6 +545,7 @@
           <button class="btn btn-outline btn-sm" (click)="startTimer(detailTask)">▶</button>
           <button class="btn btn-toggle btn-sm" (click)="stopTimer(detailTask)">⏹ +1m</button>
           <span style="font-size:0.85rem;color:var(--text-muted)">{{ formatTime(detailTask.tiempo_acumulado) }}</span>
+          <button class="btn btn-outline btn-sm" (click)="copyPublicLink(detailTask)" title="Copiar enlace público">🔗</button>
           <button class="btn btn-danger" (click)="deleteFromDetail()" style="margin-left:auto">Eliminar</button>
         </div>
       </div>

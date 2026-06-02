@@ -57,6 +57,12 @@ export class AppComponent implements OnInit {
 
   reminderMinutes: number | null = null;
 
+  templates: { name: string; data: any }[] = [];
+  newTemplateName = '';
+
+  dashboardWidgets: string[] = ['stats', 'progress', 'hoy', 'semana'];
+  editingWidgets = false;
+
   showCategoryPanel = false;
   newCategoryName = '';
   newCategoryColor = '#4361ee';
@@ -94,6 +100,10 @@ export class AppComponent implements OnInit {
     this.theme.init();
     const saved = localStorage.getItem('taskmanager_saved_filters');
     if (saved) this.savedFilters = JSON.parse(saved);
+    const tpl = localStorage.getItem('taskmanager_templates');
+    if (tpl) this.templates = JSON.parse(tpl);
+    const widgets = localStorage.getItem('taskmanager_widgets');
+    if (widgets) this.dashboardWidgets = JSON.parse(widgets);
     if (this.authService.hasToken()) {
       this.loadCategories();
       this.loadTasks();
@@ -256,8 +266,23 @@ export class AppComponent implements OnInit {
 
   loadTasks(): void {
     this.loading = true;
-    const search = this.searchTerm.trim() || undefined;
-    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder, this.filterPriority ?? undefined, this.filterCompletada ?? undefined).subscribe({
+    const rawSearch = this.searchTerm.trim();
+    let search = rawSearch || undefined;
+    let filterPriority = this.filterPriority;
+    let filterCompletada = this.filterCompletada;
+    if (rawSearch) {
+      const words = rawSearch.split(' ');
+      const filtered = words.filter((w) => {
+        if (w === '@alta' || w === '@media' || w === '@baja') { filterPriority = w.slice(1); return false; }
+        if (w === '@pendiente') { filterCompletada = false; return false; }
+        if (w === '@completada') { filterCompletada = true; return false; }
+        if (w === '@hoy') { this.filterCategoryId = null; this.showVencidas = false; search = undefined; filterPriority = null; filterCompletada = null; this.loadTasksForToday(); this.loading = true; return false; }
+        return true;
+      });
+      const newSearch = filtered.join(' ').trim();
+      search = newSearch || undefined;
+    }
+    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder, filterPriority ?? undefined, filterCompletada ?? undefined).subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;
@@ -929,5 +954,99 @@ export class AppComponent implements OnInit {
       }
     }
     if (changed) localStorage.setItem('taskmanager_reminders', JSON.stringify(reminders));
+  }
+
+  loadTasksForToday(): void {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const manana = new Date(hoy);
+    manana.setDate(manana.getDate() + 1);
+    this.taskService.getTasks(1, 50, undefined, undefined, undefined, 'fecha_vencimiento', 'asc').subscribe({
+      next: (data) => {
+        this.tasks = data.filter((t) => {
+          if (!t.fecha_vencimiento) return false;
+          const fd = new Date(t.fecha_vencimiento);
+          fd.setHours(0, 0, 0, 0);
+          return fd.getTime() === hoy.getTime();
+        });
+        this.loading = false;
+      },
+      error: () => { this.loading = false; },
+    });
+  }
+
+  renderMarkdown(text: string | null): string {
+    if (!text) return '';
+    let html = text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+      .replace(/\n/g, '<br>');
+    return html;
+  }
+
+  saveTemplate(): void {
+    if (!this.newTemplateName.trim()) return;
+    this.templates.push({
+      name: this.newTemplateName.trim(),
+      data: {
+        titulo: this.newTitle,
+        descripcion: this.newDescription,
+        prioridad: this.newPriority,
+        estado: this.newEstado,
+        recurrencia: this.newRecurrencia,
+        category_ids: this.selectedCategoryIds,
+      },
+    });
+    localStorage.setItem('taskmanager_templates', JSON.stringify(this.templates));
+    this.newTemplateName = '';
+    this.toast.show('Plantilla guardada', 'success');
+  }
+
+  applyTemplate(tpl: { name: string; data: any }): void {
+    this.newTitle = tpl.data.titulo || '';
+    this.newDescription = tpl.data.descripcion || '';
+    this.newPriority = tpl.data.prioridad || 'media';
+    this.newEstado = tpl.data.estado || 'pendiente';
+    this.newRecurrencia = tpl.data.recurrencia || '';
+    this.selectedCategoryIds = tpl.data.category_ids || [];
+    this.showCreateForm = true;
+    this.setView('tasks');
+  }
+
+  deleteTemplate(index: number): void {
+    this.templates.splice(index, 1);
+    localStorage.setItem('taskmanager_templates', JSON.stringify(this.templates));
+  }
+
+  copyPublicLink(task: Task): void {
+    if (task.public_uuid) {
+      this.copyToClipboard(`${window.location.origin}/#/public/${task.public_uuid}`);
+      return;
+    }
+    this.taskService.generatePublicLink(task.id).subscribe({
+      next: (data) => {
+        task.public_uuid = data.public_uuid;
+        this.copyToClipboard(`${window.location.origin}/#/public/${task.public_uuid}`);
+      },
+      error: () => this.toast.show('Error al generar enlace', 'error'),
+    });
+  }
+
+  private copyToClipboard(text: string): void {
+    navigator.clipboard.writeText(text).then(() => {
+      this.toast.show('Enlace copiado al portapapeles', 'info');
+    });
+  }
+
+  toggleWidget(widget: string): void {
+    const idx = this.dashboardWidgets.indexOf(widget);
+    if (idx >= 0) this.dashboardWidgets.splice(idx, 1);
+    else this.dashboardWidgets.push(widget);
+    localStorage.setItem('taskmanager_widgets', JSON.stringify(this.dashboardWidgets));
   }
 }
