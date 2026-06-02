@@ -9,7 +9,7 @@ export class TaskService {
 
   constructor(private http: HttpClient) {}
 
-  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean, search?: string, sortBy?: string, sortOrder?: string, prioridad?: string): Observable<Task[]> {
+  getTasks(page: number = 1, pageSize: number = 50, categoryId?: number, vencidas?: boolean, search?: string, sortBy?: string, sortOrder?: string, prioridad?: string, completada?: boolean): Observable<Task[]> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('page_size', pageSize.toString())
@@ -26,6 +26,9 @@ export class TaskService {
     }
     if (prioridad) {
       params = params.set('prioridad', prioridad);
+    }
+    if (completada !== undefined) {
+      params = params.set('completada', completada.toString());
     }
     return this.http.get<Task[]>(this.apiUrl, { params });
   }

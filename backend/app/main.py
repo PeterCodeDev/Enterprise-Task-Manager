@@ -16,6 +16,7 @@ from app.schemas import (
     UserCreate, UserResponse, UserLogin, Token,
     TaskCreate, TaskUpdate, TaskResponse,
     CategoryCreate, CategoryResponse,
+    PasswordChange,
 )
 from app.security import get_password_hash, verify_password, create_access_token
 from app.auth import get_current_user
@@ -82,6 +83,19 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(db_user.id)})
     logger.info(f"User logged in: {db_user.email}")
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.put("/api/auth/password", status_code=204)
+def change_password(
+    data: PasswordChange,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not verify_password(data.old_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta")
+    current_user.password_hash = get_password_hash(data.new_password)
+    db.commit()
+    logger.info(f"Password changed for: {current_user.email}")
 
 
 @app.get("/api/categories", response_model=List[CategoryResponse])

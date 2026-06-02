@@ -21,6 +21,7 @@ export class AppComponent implements OnInit {
   selectedCategoryIds: number[] = [];
   filterCategoryId: number | null = null;
   filterPriority: string | null = null;
+  filterCompletada: boolean | null = null;
   showVencidas = false;
   searchTerm = '';
   sortBy = 'id';
@@ -42,6 +43,10 @@ export class AppComponent implements OnInit {
   newCategoryName = '';
   newCategoryColor = '#4361ee';
   deleteConfirmCatId: number | null = null;
+
+  showPasswordPanel = false;
+  oldPassword = '';
+  newPassword = '';
 
   loginEmail = '';
   loginPassword = '';
@@ -84,7 +89,27 @@ export class AppComponent implements OnInit {
     const pendientes = total - completadas;
     const vencidas = this.tasks.filter((t) => !t.completada && this.isOverdue(t)).length;
     const porcentaje = total > 0 ? Math.round((completadas / total) * 100) : 0;
-    return { total, completadas, pendientes, vencidas, porcentaje };
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const finSemana = new Date(hoy);
+    finSemana.setDate(finSemana.getDate() + (7 - finSemana.getDay()));
+
+    const tareasHoy = this.tasks.filter((t) => {
+      if (!t.fecha_vencimiento || t.completada) return false;
+      const fecha = new Date(t.fecha_vencimiento);
+      fecha.setHours(0, 0, 0, 0);
+      return fecha.getTime() === hoy.getTime();
+    });
+
+    const tareasSemana = this.tasks.filter((t) => {
+      if (!t.fecha_vencimiento || t.completada) return false;
+      const fecha = new Date(t.fecha_vencimiento);
+      fecha.setHours(0, 0, 0, 0);
+      return fecha >= hoy && fecha <= finSemana;
+    });
+
+    return { total, completadas, pendientes, vencidas, porcentaje, tareasHoy, tareasSemana };
   }
 
   isOverdue(task: Task): boolean {
@@ -162,7 +187,7 @@ export class AppComponent implements OnInit {
   loadTasks(): void {
     this.loading = true;
     const search = this.searchTerm.trim() || undefined;
-    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder, this.filterPriority ?? undefined).subscribe({
+    this.taskService.getTasks(1, 50, this.filterCategoryId ?? undefined, this.showVencidas, search, this.sortBy, this.sortOrder, this.filterPriority ?? undefined, this.filterCompletada ?? undefined).subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;
@@ -352,5 +377,28 @@ export class AppComponent implements OnInit {
     if (!this.detailTask) return;
     this.confirmDelete(this.detailTask);
     this.closeDetail();
+  }
+
+  changePassword(): void {
+    if (!this.oldPassword || !this.newPassword) return;
+    if (this.newPassword.length < 6) {
+      this.toast.show('La contraseña debe tener al menos 6 caracteres', 'error');
+      return;
+    }
+    this.authService.changePassword(this.oldPassword, this.newPassword).subscribe({
+      next: () => {
+        this.oldPassword = '';
+        this.newPassword = '';
+        this.showPasswordPanel = false;
+        this.toast.show('Contraseña cambiada', 'success');
+      },
+      error: (err) => {
+        if (err.status === 400) {
+          this.toast.show('Contraseña actual incorrecta', 'error');
+        } else {
+          this.toast.show('Error al cambiar contraseña', 'error');
+        }
+      },
+    });
   }
 }

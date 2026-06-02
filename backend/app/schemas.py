@@ -30,6 +30,11 @@ class TokenData(BaseModel):
     user_id: Optional[int] = None
 
 
+class PasswordChange(BaseModel):
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6, max_length=128)
+
+
 class CategoryCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
     color: str = Field(default="#4361ee", max_length=7)

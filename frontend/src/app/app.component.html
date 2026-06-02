@@ -58,6 +58,7 @@
             {{ theme.isDark ? '☀️' : '🌙' }}
           </button>
           <span class="sidebar-email">{{ userEmail }}</span>
+          <button class="btn btn-link btn-sm" (click)="showPasswordPanel = true">Cambiar contraseña</button>
           <button class="btn btn-logout" (click)="logout()">Salir</button>
         </div>
       </aside>
@@ -94,6 +95,24 @@
           <div class="quick-actions">
             <button class="btn btn-primary" (click)="setView('tasks')">Ir a tareas</button>
             <button class="btn btn-outline" (click)="setView('categories')">Gestionar categorías</button>
+          </div>
+
+          <div class="dashboard-lists" *ngIf="stats.tareasHoy.length > 0 || stats.tareasSemana.length > 0">
+            <div class="dash-section" *ngIf="stats.tareasHoy.length > 0">
+              <h3 class="dash-section-title">📅 Hoy ({{ stats.tareasHoy.length }})</h3>
+              <div class="dash-task" *ngFor="let task of stats.tareasHoy" (click)="openDetail(task)">
+                <span class="priority-dot" [style.background]="priorityColor(task.prioridad)"></span>
+                <span class="dash-task-title">{{ task.titulo }}</span>
+              </div>
+            </div>
+            <div class="dash-section" *ngIf="stats.tareasSemana.length > 0">
+              <h3 class="dash-section-title">📆 Esta semana ({{ stats.tareasSemana.length }})</h3>
+              <div class="dash-task" *ngFor="let task of stats.tareasSemana" (click)="openDetail(task)">
+                <span class="priority-dot" [style.background]="priorityColor(task.prioridad)"></span>
+                <span class="dash-task-title">{{ task.titulo }}</span>
+                <span class="dash-task-date">{{ task.fecha_vencimiento | date:'dd/MM' }}</span>
+              </div>
+            </div>
           </div>
         </ng-container>
 
@@ -145,6 +164,13 @@
               [style.background]="filterPriority === 'baja' ? '#06d6a0' : 'transparent'"
               [class.active]="filterPriority === 'baja'"
               (click)="filterPriority = filterPriority === 'baja' ? null : 'baja'; filterCategoryId = null; showVencidas = false; loadTasks()">Baja</span>
+            <span class="separator">|</span>
+            <span class="category-tag" [class.active]="filterCompletada === false"
+              (click)="filterCompletada = filterCompletada === false ? null : false; loadTasks()"
+              style="border-color:#4361ee;color:#4361ee">○ Pendientes</span>
+            <span class="category-tag" [class.active]="filterCompletada === true"
+              (click)="filterCompletada = filterCompletada === true ? null : true; loadTasks()"
+              style="border-color:#06d6a0;color:#06d6a0">✓ Completadas</span>
           </div>
 
           <!-- Create form (collapsible) -->
@@ -324,6 +350,19 @@
         <div class="modal-actions">
           <button class="btn btn-danger" (click)="deleteCategory()">Confirmar</button>
           <button class="btn btn-secondary" (click)="cancelDeleteCategory()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password change modal -->
+    <div class="modal-overlay" *ngIf="showPasswordPanel" (click)="showPasswordPanel = false; oldPassword = ''; newPassword = ''">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">Cambiar contraseña</h3>
+        <input type="password" [(ngModel)]="oldPassword" name="oldPassword" placeholder="Contraseña actual" class="create-input" style="margin-bottom:0.75rem" />
+        <input type="password" [(ngModel)]="newPassword" name="newPassword" placeholder="Nueva contraseña (mín. 6)" class="create-input" style="margin-bottom:1rem" />
+        <div class="modal-actions">
+          <button class="btn btn-primary" (click)="changePassword()">Guardar</button>
+          <button class="btn btn-secondary" (click)="showPasswordPanel = false; oldPassword = ''; newPassword = ''">Cancelar</button>
         </div>
       </div>
     </div>

@@ -56,4 +56,11 @@ export class AuthService {
   hasToken(): boolean {
     return !!this.getToken();
   }
+
+  changePassword(oldPassword: string, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/password`, {
+      old_password: oldPassword,
+      new_password: newPassword,
+    });
+  }
 }
