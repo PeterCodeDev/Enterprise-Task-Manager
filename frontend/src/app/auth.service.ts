@@ -19,7 +19,7 @@ export interface TokenResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = 'http://localhost:8000/api/auth';
+  private apiUrl = '/api/auth';
   private tokenKey = 'taskmanager_token';
   private emailKey = 'taskmanager_email';
 

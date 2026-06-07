@@ -5,7 +5,7 @@ import { Task, TaskCreate, Subtask, Attachment, Comment, ActivityLog } from './t
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
-  private apiUrl = 'http://localhost:8000/api/tasks';
+  private apiUrl = '/api/tasks';
 
   constructor(private http: HttpClient) {}
 
@@ -58,11 +58,11 @@ export class TaskService {
   }
 
   toggleSubtask(subtaskId: number): Observable<Subtask> {
-    return this.http.patch<Subtask>(`http://localhost:8000/api/subtasks/${subtaskId}/toggle`, {});
+    return this.http.patch<Subtask>(`/api/subtasks/${subtaskId}/toggle`, {});
   }
 
   deleteSubtask(subtaskId: number): Observable<void> {
-    return this.http.delete<void>(`http://localhost:8000/api/subtasks/${subtaskId}`);
+    return this.http.delete<void>(`/api/subtasks/${subtaskId}`);
   }
 
   uploadAttachment(taskId: number, file: File): Observable<Attachment> {
@@ -72,11 +72,11 @@ export class TaskService {
   }
 
   deleteAttachment(attachmentId: number): Observable<void> {
-    return this.http.delete<void>(`http://localhost:8000/api/attachments/${attachmentId}`);
+    return this.http.delete<void>(`/api/attachments/${attachmentId}`);
   }
 
   getAttachmentUrl(attachmentId: number): string {
-    return `http://localhost:8000/api/attachments/${attachmentId}`;
+    return `/api/attachments/${attachmentId}`;
   }
 
   importCsv(file: File): Observable<{ imported: number }> {
@@ -86,7 +86,7 @@ export class TaskService {
   }
 
   getIcalUrl(): string {
-    return 'http://localhost:8000/api/tasks/ical';
+    return '/api/tasks/ical';
   }
 
   getComments(taskId: number): Observable<Comment[]> {
@@ -98,17 +98,17 @@ export class TaskService {
   }
 
   deleteComment(commentId: number): Observable<void> {
-    return this.http.delete<void>(`http://localhost:8000/api/comments/${commentId}`);
+    return this.http.delete<void>(`/api/comments/${commentId}`);
   }
 
   exportBackup(): Observable<any> {
-    return this.http.get('http://localhost:8000/api/backup/export');
+    return this.http.get('/api/backup/export');
   }
 
   importBackup(file: File): Observable<{ imported: number }> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<{ imported: number }>('http://localhost:8000/api/backup/import', formData);
+    return this.http.post<{ imported: number }>('/api/backup/import', formData);
   }
 
   startTimer(taskId: number): Observable<Task> {
@@ -124,15 +124,15 @@ export class TaskService {
   }
 
   getTokens(): Observable<any[]> {
-    return this.http.get<any[]>('http://localhost:8000/api/tokens');
+    return this.http.get<any[]>('/api/tokens');
   }
 
   createToken(name: string): Observable<any> {
-    return this.http.post<any>('http://localhost:8000/api/tokens', { name });
+    return this.http.post<any>('/api/tokens', { name });
   }
 
   deleteToken(tokenId: number): Observable<void> {
-    return this.http.delete<void>(`http://localhost:8000/api/tokens/${tokenId}`);
+    return this.http.delete<void>(`/api/tokens/${tokenId}`);
   }
 
   generatePublicLink(taskId: number): Observable<{ public_uuid: string }> {

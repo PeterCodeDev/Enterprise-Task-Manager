@@ -5,7 +5,7 @@ import { Category } from './task.model';
 
 @Injectable({ providedIn: 'root' })
 export class CategoryService {
-  private apiUrl = 'http://localhost:8000/api/categories';
+  private apiUrl = '/api/categories';
 
   constructor(private http: HttpClient) {}
 

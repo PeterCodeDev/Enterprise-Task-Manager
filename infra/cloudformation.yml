@@ -1,0 +1,308 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Enterprise Task Manager - Infraestructura AWS Free Tier
+  Crea: VPC, Subnet, EC2 (t2.micro), Security Groups, RDS PostgreSQL (db.t2.micro), IAM Role
+  Todo dentro del free tier de AWS (750h/mes).
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Nombre del key pair para SSH a la instancia EC2
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    MaxLength: 41
+    Description: Contraseña maestra de RDS PostgreSQL (guárdala segura)
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro, t3.micro]
+    Description: Tipo de instancia EC2 (free tier: t2.micro o t3.micro)
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Acceso EC2
+        Parameters:
+          - KeyName
+          - InstanceType
+      - Label:
+          default: Base de Datos
+        Parameters:
+          - DBPassword
+
+Resources:
+  # ================================================================
+  # VPC
+  # ================================================================
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: taskmanager-vpc
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: taskmanager-subnet-public-a
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: taskmanager-subnet-public-b
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: taskmanager-igw
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: taskmanager-public-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # ================================================================
+  # Security Groups
+  # ================================================================
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: taskmanager-ec2-sg
+      GroupDescription: Seguridad para EC2 - Task Manager
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+      Tags:
+        - Key: Name
+          Value: taskmanager-ec2-sg
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: taskmanager-rds-sg
+      GroupDescription: Seguridad RDS - solo EC2 puede conectar
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+          Description: PostgreSQL desde EC2
+      Tags:
+        - Key: Name
+          Value: taskmanager-rds-sg
+
+  # ================================================================
+  # RDS PostgreSQL (Free Tier)
+  # ================================================================
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group para RDS
+      SubnetIds:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: taskmanager-db-subnet
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: taskmanager-db
+      DBName: taskdb
+      Engine: postgres
+      EngineVersion: "15"
+      DBInstanceClass: db.t2.micro
+      AllocatedStorage: "20"
+      MaxAllocatedStorage: "20"
+      StorageType: gp2
+      MasterUsername: taskuser
+      MasterUserPassword: !Ref DBPassword
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: taskmanager-db
+
+  # ================================================================
+  # IAM Role para EC2 (acceso a ECR y CloudWatch)
+  # ================================================================
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: taskmanager-ec2-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      Tags:
+        - Key: Name
+          Value: taskmanager-ec2-role
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: taskmanager-ec2-profile
+      Roles:
+        - !Ref EC2Role
+
+  # ================================================================
+  # EC2 Instance
+  # ================================================================
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: ami-0c02fb55956c7d316
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref EC2SecurityGroup
+          SubnetId: !Ref PublicSubnetA
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp2
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -ex
+          # ============================================================
+          # Bootstrapping EC2 - Docker + Docker Compose + AWS CLI
+          # ============================================================
+          exec > /var/log/user-data.log 2>&1
+
+          # Actualizar sistema
+          yum update -y
+
+          # Instalar Docker
+          amazon-linux-extras enable docker
+          yum install -y docker git
+          service docker start
+          usermod -a -G docker ec2-user
+
+          # Instalar Docker Compose v2
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+            -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+          # Instalar AWS CloudWatch agent (logs a CloudWatch)
+          yum install -y amazon-cloudwatch-agent
+          cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWAEOF'
+          {
+            "logs": {
+              "logs_collected": {
+                "files": {
+                  "collect_list": [
+                    {
+                      "file_path": "/var/log/user-data.log",
+                      "log_group_name": "/ecs/taskmanager",
+                      "log_stream_name": "bootstrap"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+          CWAEOF
+          systemctl enable amazon-cloudwatch-agent
+          systemctl start amazon-cloudwatch-agent
+
+          echo "[OK] Bootstrap completado" >> /var/log/user-data.log
+
+      Tags:
+        - Key: Name
+          Value: taskmanager-server
+
+Outputs:
+  WebsiteURL:
+    Description: URL de la aplicación
+    Value: !Sub http://${EC2Instance.PublicDnsName}
+  EC2PublicIP:
+    Description: IP pública de la instancia EC2
+    Value: !GetAtt EC2Instance.PublicIp
+  RDSHost:
+    Description: Endpoint de la base de datos RDS
+    Value: !GetAtt RDSInstance.Endpoint.Address
+  RDSPort:
+    Description: Puerto de RDS
+    Value: !GetAtt RDSInstance.Endpoint.Port
+  ConnectSSH:
+    Description: Comando para conectar por SSH
+    Value: !Sub ssh -i ${KeyName}.pem ec2-user@${EC2Instance.PublicDnsName}

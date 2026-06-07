@@ -14,5 +14,9 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return self.cors_origins
+
 
 settings = Settings()
