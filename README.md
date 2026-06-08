@@ -1,5 +1,7 @@
 # Enterprise Task Manager
 
+> **🚀 Full-Stack MVP (FastAPI + Angular) — Containerized with Docker & Docker Compose, featuring an automated CI/CD pipeline via GitHub Actions and deployed on AWS (EC2, RDS, ECR) using Infrastructure as Code (CloudFormation).**
+
 API REST de gestión de tareas con autenticación JWT, construida con **FastAPI + PostgreSQL + Docker**.
 
 ## Stack tecnológico
