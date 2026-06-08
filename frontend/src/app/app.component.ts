@@ -9,6 +9,7 @@ import { Task, Category, Subtask, Attachment, Comment } from './task.model';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
+  standalone: false,
 })
 export class AppComponent implements OnInit {
   currentView: 'dashboard' | 'tasks' | 'categories' | 'calendar' | 'kanban' = 'dashboard';
