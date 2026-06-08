@@ -15,12 +15,6 @@ services:
       - backend
     networks:
       - app-network
-    logging:
-      driver: awslogs
-      options:
-        awslogs-group: /ecs/taskmanager
-        awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-stream: frontend
 
   backend:
     image: ${ECR_REGISTRY:-ghcr.io}/enterprise-task-manager/backend:latest
@@ -39,12 +33,6 @@ services:
         condition: service_healthy
     networks:
       - app-network
-    logging:
-      driver: awslogs
-      options:
-        awslogs-group: /ecs/taskmanager
-        awslogs-region: ${AWS_REGION:-us-east-1}
-        awslogs-stream: backend
 
   postgres-db:
     image: postgres:15-alpine
