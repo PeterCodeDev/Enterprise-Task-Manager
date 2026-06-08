@@ -165,7 +165,70 @@ Enterprise-Task-Manager/
 El workflow de GitHub Actions en cada push a `main`:
 1. Ejecuta 22 tests
 2. Construye imágenes Docker
-3. Publica en GitHub Container Registry
+3. Publica en ECR (Elastic Container Registry)
+4. Despliega automáticamente en EC2 vía SSH
+
+## Deploy en AWS — Producción
+
+La aplicación está desplegada en **AWS Free Tier** utilizando una arquitectura en la nube completa:
+
+| Servicio AWS | Uso |
+|---|---|
+| **EC2** (t2.micro) | Servidor con Docker Compose (frontend + backend) |
+| **RDS PostgreSQL** (db.t2.micro) | Base de datos gestionada con backups automáticos |
+| **ECR** | Container Registry privado para imágenes Docker |
+| **CloudFormation** | Infraestructura como Código (IaC) — despliegue reproducible |
+| **IAM** | Roles y políticas de seguridad (acceso a ECR + CloudWatch) |
+| **VPC** | Red aislada con subnets públicas, Internet Gateway y Route Tables |
+| **Security Groups** | RDS accesible solo desde EC2; EC2 expone solo HTTP (80) y SSH (22) |
+
+### Arquitectura
+
+```
+Internet → HTTP(80) → [ EC2 t2.micro ]
+                          │  ├─ frontend (Nginx :80)
+                          │  └─ backend  (FastAPI)
+                          │       └─ JWT ────→ [ RDS PostgreSQL ]
+                          │                             ↓
+                          └─── [ ECR ] ←── GitHub Actions (CI/CD)
+```
+
+### Cómo desplegar en AWS desde cero
+
+```bash
+# 1. Lanzar infraestructura con CloudFormation (~10 min)
+aws cloudformation create-stack \
+  --stack-name taskmanager \
+  --template-body file://infra/cloudformation.yml \
+  --parameters ParameterKey=KeyName,ParameterValue=mi-key \
+               ParameterKey=DBPassword,ParameterValue=PasswordSegura123
+
+# 2. Conectar por SSH a la EC2
+ssh -i mi-key.pem ec2-user@<EC2_PUBLIC_IP>
+
+# 3. Clonar el repositorio en la EC2
+git clone https://github.com/PeterCodeDev/Enterprise-Task-Manager.git
+cd Enterprise-Task-Manager
+
+# 4. Configurar variables de entorno con los valores de RDS
+cp .env.production .env
+# Editar .env con el endpoint de RDS y credenciales reales
+
+# 5. Authenticar en ECR y levantar servicios
+chmod +x infra/deploy.sh && ./infra/deploy.sh
+```
+
+### Pipeline CI/CD completo
+
+Cada `git push` a `main` dispara automáticamente:
+
+```
+GitHub Actions
+  ├── [test]      pytest (22 tests)
+  ├── [build]     docker build backend + frontend
+  ├── [push]      docker push → ECR
+  └── [deploy]    SSH → EC2 → docker compose up -d
+```
 
 ## Licencia
 
